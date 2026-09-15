@@ -1,8 +1,10 @@
-"""읽기 전용 주간 그리드 (T3). 표시만 담당하고 배치 계산은 `model.grid_cells`에 둔다 (P5)."""
+"""주간 그리드. 표시만 담당하고 배치 계산은 `model.grid_cells`에 둔다 (P5)."""
+
+from typing import Callable
 
 import flet as ft
 
-from app.model import DAY_LABELS, PERIOD_MIN, Cell, Settings, Timetable, grid_cells
+from app.model import DAY_LABELS, PERIOD_MIN, Cell, Settings, Timetable, cell_key, grid_cells
 from app.palette import resolve_hex, text_color
 
 PERIOD_COL_WIDTH = 28
@@ -12,15 +14,17 @@ GAP = 2
 RADIUS = 6
 
 
-def build_grid(timetable: Timetable, settings: Settings) -> ft.Control:
+def build_grid(
+    timetable: Timetable,
+    settings: Settings,
+    on_cell_click: Callable[[str], None] | None = None,
+) -> ft.Control:
+    """`on_cell_click`이 None이면 읽기 전용."""
     rows: list[ft.Control] = [_header(settings.days)]
     for offset, row in enumerate(grid_cells(timetable, settings)):
-        rows.append(
-            ft.Row(
-                [_period_label(PERIOD_MIN + offset), *[_cell(cell) for cell in row]],
-                spacing=GAP,
-            )
-        )
+        period = PERIOD_MIN + offset
+        cells = [_cell(cell, cell_key(day, period), on_cell_click) for day, cell in enumerate(row)]
+        rows.append(ft.Row([_period_label(period), *cells], spacing=GAP))
     return ft.Column(rows, spacing=GAP, scroll=ft.ScrollMode.AUTO, expand=True)
 
 
@@ -46,13 +50,16 @@ def _period_label(period: int) -> ft.Container:
     )
 
 
-def _cell(cell: Cell | None) -> ft.Container:
+def _cell(cell: Cell | None, key: str, on_click: Callable[[str], None] | None) -> ft.Container:
+    handler = (lambda e: on_click(key)) if on_click else None
     if cell is None:
         return ft.Container(
             expand=1,
             height=CELL_HEIGHT,
             border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
             border_radius=ft.BorderRadius.all(RADIUS),
+            ink=on_click is not None,
+            on_click=handler,
         )
     fg = text_color(cell.color)
     lines: list[ft.Control] = [
@@ -91,4 +98,6 @@ def _cell(cell: Cell | None) -> ft.Container:
         border_radius=ft.BorderRadius.all(RADIUS),
         padding=ft.Padding.all(4),
         alignment=ft.Alignment.CENTER,
+        ink=on_click is not None,
+        on_click=handler,
     )
