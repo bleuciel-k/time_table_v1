@@ -13,17 +13,23 @@ CELL_HEIGHT = 84
 GAP = 2
 RADIUS = 6
 
+KeyHandler = Callable[[str], None]
+
 
 def build_grid(
     timetable: Timetable,
     settings: Settings,
-    on_cell_click: Callable[[str], None] | None = None,
+    on_cell_click: KeyHandler | None = None,
+    on_cell_long_press: KeyHandler | None = None,
 ) -> ft.Control:
-    """`on_cell_click`이 None이면 읽기 전용."""
+    """핸들러가 None이면 해당 조작 없음 (읽기 전용)."""
     rows: list[ft.Control] = [_header(settings.days)]
     for offset, row in enumerate(grid_cells(timetable, settings)):
         period = PERIOD_MIN + offset
-        cells = [_cell(cell, cell_key(day, period), on_cell_click) for day, cell in enumerate(row)]
+        cells = [
+            _cell(cell, cell_key(day, period), on_cell_click, on_cell_long_press)
+            for day, cell in enumerate(row)
+        ]
         rows.append(ft.Row([_period_label(period), *cells], spacing=GAP))
     return ft.Column(rows, spacing=GAP, scroll=ft.ScrollMode.AUTO, expand=True)
 
@@ -50,16 +56,24 @@ def _period_label(period: int) -> ft.Container:
     )
 
 
-def _cell(cell: Cell | None, key: str, on_click: Callable[[str], None] | None) -> ft.Container:
-    handler = (lambda e: on_click(key)) if on_click else None
+def _cell(
+    cell: Cell | None,
+    key: str,
+    on_click: KeyHandler | None,
+    on_long_press: KeyHandler | None,
+) -> ft.Container:
+    interaction = {
+        "ink": on_click is not None or on_long_press is not None,
+        "on_click": (lambda e: on_click(key)) if on_click else None,
+        "on_long_press": (lambda e: on_long_press(key)) if on_long_press else None,
+    }
     if cell is None:
         return ft.Container(
             expand=1,
             height=CELL_HEIGHT,
             border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
             border_radius=ft.BorderRadius.all(RADIUS),
-            ink=on_click is not None,
-            on_click=handler,
+            **interaction,
         )
     fg = text_color(cell.color)
     lines: list[ft.Control] = [
@@ -98,6 +112,5 @@ def _cell(cell: Cell | None, key: str, on_click: Callable[[str], None] | None) -
         border_radius=ft.BorderRadius.all(RADIUS),
         padding=ft.Padding.all(4),
         alignment=ft.Alignment.CENTER,
-        ink=on_click is not None,
-        on_click=handler,
+        **interaction,
     )

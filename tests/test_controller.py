@@ -1,12 +1,21 @@
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
-from app.controller import READ_ONLY_MESSAGE, AppController, SaveResult
-from app.model import Cell, to_dict
+from app.controller import READ_ONLY_MESSAGE, UNDO_EXPIRED_MESSAGE, ActionResult, AppController
+from app.model import Cell, Workspace, to_dict
 from app.sample import sample_data
 from app.storage import DATA_FILE, Storage
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.now = datetime(2026, 9, 15, 10, 0, 0, tzinfo=timezone.utc)
+
+    def __call__(self) -> datetime:
+        return self.now
 
 
 @pytest.fixture
@@ -18,6 +27,13 @@ def ctrl(tmp_path: Path) -> AppController:
 
 def reopen(tmp_path: Path) -> AppController:
     return AppController.open(Storage(tmp_path))[0]
+
+
+def add(ctrl: AppController, key: str, subject: str, color: str = "blue") -> None:
+    form = ctrl.form_for(key)
+    ctrl.update_subject(form, subject)
+    form.choose_color(color)
+    assert ctrl.save_form(form).applied
 
 
 # ---- 폼 검증 (F1)
@@ -93,7 +109,7 @@ def test_save_form_persists_across_restart(ctrl, tmp_path):
     ctrl.update_subject(form, " 日本語会話 ")
     form.room, form.teacher, form.memo = "L105", "田中", "과제 있음"
     form.choose_color("pink")
-    assert ctrl.save_form(form) == SaveResult(True)
+    assert ctrl.save_form(form) == ActionResult(True)
 
     cell = reopen(tmp_path).workspace.get_cell("2-3")
     assert cell == Cell(subject="日本語会話", room="L105", teacher="田中", memo="과제 있음", color="pink")
@@ -120,6 +136,140 @@ def test_storage_failure_returns_message_and_keeps_change(ctrl, monkeypatch):
     assert ctrl.workspace.get_cell("0-1").subject == "알고리즘"
 
 
+# ---- 셀 복사/붙여넣기 (F3a)
+
+
+def test_copy_paste_into_empty_cell_persists(ctrl, tmp_path):
+    add(ctrl, "0-1", "알고리즘", "red")
+    copied = ctrl.copy_cell("0-1")
+    assert copied.applied and "알고리즘" in copied.message
+    assert ctrl.has_clipboard
+    assert not ctrl.needs_overwrite_confirm("1-2")
+
+    result = ctrl.paste_cell("1-2")
+    assert result.applied and not result.undoable
+    assert reopen(tmp_path).workspace.get_cell("1-2") == Cell(subject="알고리즘", color="red")
+
+
+def test_paste_into_occupied_cell_requires_overwrite(ctrl, tmp_path):
+    add(ctrl, "0-1", "알고리즘")
+    add(ctrl, "0-2", "영어")
+    ctrl.copy_cell("0-1")
+    assert ctrl.needs_overwrite_confirm("0-2")
+
+    refused = ctrl.paste_cell("0-2")
+    assert not refused.applied and refused.message
+    assert reopen(tmp_path).workspace.get_cell("0-2").subject == "영어"
+
+    assert ctrl.paste_cell("0-2", overwrite=True).applied
+    assert reopen(tmp_path).workspace.get_cell("0-2").subject == "알고리즘"
+
+
+def test_copy_empty_cell_and_paste_without_clipboard(ctrl):
+    assert ctrl.copy_cell("0-1") == ActionResult(False, "복사할 내용이 없습니다.")
+    assert not ctrl.has_clipboard
+    result = ctrl.paste_cell("0-2")
+    assert not result.applied and result.message
+
+
+# ---- 시간표 복제 (F3b)
+
+
+def test_duplicate_timetable_persists_and_keeps_active(ctrl, tmp_path):
+    add(ctrl, "0-1", "알고리즘")
+    original = ctrl.workspace.active
+    result = ctrl.duplicate_timetable()
+    assert result.applied and not result.undoable
+    assert result.message == f"복제했어요: {original.name} (복사본)"
+
+    again = reopen(tmp_path).workspace
+    assert again.active.id == original.id
+    visible = again.data.visible()
+    assert [t.name for t in visible] == [original.name, f"{original.name} (복사본)"]
+    assert visible[1].id != original.id
+    assert visible[1].cells == visible[0].cells
+
+
+# ---- 지우기 + 되돌리기 (F4)
+
+
+def test_clear_cell_then_undo_persists_both(ctrl, tmp_path):
+    add(ctrl, "0-1", "알고리즘")
+    result = ctrl.clear_cell("0-1")
+    assert result == ActionResult(True, "셀을 삭제했어요.", undoable=True)
+    assert reopen(tmp_path).workspace.get_cell("0-1") is None
+
+    undone = ctrl.undo()
+    assert undone == ActionResult(True, "되돌렸어요.")
+    assert reopen(tmp_path).workspace.get_cell("0-1").subject == "알고리즘"
+
+
+def test_clear_empty_cell_is_silent_noop(ctrl):
+    assert ctrl.clear_cell("0-1") == ActionResult(False)
+    assert ctrl.clear_timetable() == ActionResult(False, "이미 비어 있습니다.")
+
+
+def test_clear_timetable_then_undo(ctrl, tmp_path):
+    add(ctrl, "0-1", "a")
+    add(ctrl, "1-1", "b")
+    assert ctrl.clear_timetable().undoable
+    assert reopen(tmp_path).workspace.active.cells == {}
+    assert ctrl.undo().applied
+    assert set(reopen(tmp_path).workspace.active.cells) == {"0-1", "1-1"}
+
+
+def test_delete_timetable_then_undo(ctrl, tmp_path):
+    add(ctrl, "0-1", "a")
+    ctrl.duplicate_timetable()
+    original = ctrl.workspace.active
+
+    result = ctrl.delete_timetable()
+    assert result.applied and result.undoable
+    assert result.message == f"삭제했어요: {original.name}"
+    assert ctrl.workspace.active.name == f"{original.name} (복사본)"
+    assert reopen(tmp_path).workspace.data.find(original.id) is None
+
+    assert ctrl.undo().applied
+    again = reopen(tmp_path).workspace
+    assert again.active.id == original.id
+    assert len(again.data.visible()) == 2
+
+
+def test_delete_last_timetable_shows_new_empty_one(ctrl):
+    add(ctrl, "0-1", "a")
+    assert ctrl.delete_timetable().applied
+    assert ctrl.workspace.active.name == "새 시간표"
+    assert ctrl.workspace.active.cells == {}
+
+
+def test_undo_after_window_expires(tmp_path):
+    clock = FakeClock()
+    ctrl = AppController(Storage(tmp_path), Workspace(clock=clock))
+    add(ctrl, "0-1", "a")
+    ctrl.clear_cell("0-1")
+    clock.now += timedelta(seconds=5.1)
+    assert ctrl.undo() == ActionResult(False, UNDO_EXPIRED_MESSAGE)
+    assert ctrl.workspace.get_cell("0-1") is None
+
+
+def test_other_change_cancels_undo(ctrl):
+    add(ctrl, "0-1", "a")
+    ctrl.clear_cell("0-1")
+    add(ctrl, "0-2", "b")
+    assert ctrl.undo() == ActionResult(False, UNDO_EXPIRED_MESSAGE)
+
+
+def test_storage_failure_on_delete_still_offers_undo(ctrl, monkeypatch):
+    add(ctrl, "0-1", "a")
+    monkeypatch.setattr(ctrl.storage, "save", lambda data: (_ for _ in ()).throw(OSError("disk")))
+    result = ctrl.clear_cell("0-1")
+    assert result.applied and result.undoable
+    assert "저장 실패" in result.message
+
+
+# ---- 읽기 전용
+
+
 def test_read_only_data_cannot_be_edited(tmp_path):
     raw = to_dict(sample_data())
     raw["schema_version"] = 99
@@ -130,8 +280,17 @@ def test_read_only_data_cannot_be_edited(tmp_path):
     assert ctrl.read_only and warnings
     form = ctrl.form_for("0-3")
     ctrl.update_subject(form, "새 과목")
-    assert ctrl.save_form(form) == SaveResult(False, READ_ONLY_MESSAGE)
+    blocked = ActionResult(False, READ_ONLY_MESSAGE)
+    assert ctrl.save_form(form) == blocked
+    assert ctrl.copy_cell("0-1").applied  # 복사는 데이터를 바꾸지 않음
+    assert ctrl.paste_cell("0-3") == blocked
+    assert ctrl.clear_cell("0-1") == blocked
+    assert ctrl.clear_timetable() == blocked
+    assert ctrl.delete_timetable() == blocked
+    assert ctrl.duplicate_timetable() == blocked
+    assert ctrl.undo() == blocked
     assert ctrl.workspace.get_cell("0-3") is None
+    assert ctrl.workspace.get_cell("0-1") is not None
     assert (tmp_path / DATA_FILE).read_text(encoding="utf-8") == text
 
 
