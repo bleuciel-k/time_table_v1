@@ -134,6 +134,19 @@ def from_dict(raw: dict[str, Any]) -> AppData:
     )
 
 
+# ---------------------------------------------------------------- 그리드 배치 (UI·내보내기 공용)
+
+DAY_LABELS = ("월", "화", "수", "목", "금", "토")
+
+
+def grid_cells(timetable: Timetable, settings: Settings) -> list[list[Cell | None]]:
+    """`[교시][요일]` 순서의 셀 표. 설정 범위 밖 셀은 포함하지 않는다 (F9)."""
+    return [
+        [timetable.cells.get(f"{day}-{period}") for day in range(settings.days)]
+        for period in range(PERIOD_MIN, settings.periods + 1)
+    ]
+
+
 # ---------------------------------------------------------------- 검증
 
 
