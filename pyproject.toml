@@ -1,0 +1,26 @@
+[project]
+name = "timetable"
+version = "0.0.1"
+description = "시간표 앱 (Android) — T0 스파이크"
+requires-python = ">=3.12"
+# R3: T0 통과 버전으로 고정
+dependencies = [
+  "flet==1.0.0",
+  "pillow==12.2.0",  # R2: pypi.flet.dev의 Android 휠이 12.2.0까지만 제공됨
+  "httpx==0.28.1",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.flet]
+org = "com.seonho"
+product = "시간표"
+company = "seonho"
+
+[tool.flet.app]
+path = "."
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
