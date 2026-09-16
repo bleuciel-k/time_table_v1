@@ -208,7 +208,11 @@ pip install flet pillow httpx pytest
 flet run main.py          # PC에서 개발
 pytest                    # 로직 테스트
 flet build apk            # APK 빌드
+bash scripts/run_android.sh   # 연결된 에뮬레이터/기기(arm64)에 빌드·설치·실행 (--no-build: 설치·실행만)
 ```
+
+- APK에 넣지 않을 파일(`.venv`, `.flet`, `tests` 등)은 `pyproject.toml`의 `[tool.flet.app] exclude`에 둔다
+- APK 크기 실측(N1): arm64 전용 58.9MB (T5 시점, 전체 ABI 포함 시 190MB)
 
 ---
 

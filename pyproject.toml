@@ -20,6 +20,11 @@ company = "seonho"
 
 [tool.flet.app]
 path = "."
+# 앱 실행에 필요 없는 파일과 로컬 데이터(.flet/.data)는 APK에 넣지 않는다
+exclude = [
+  ".git", ".venv", ".flet", ".data", ".pytest_cache", ".claude", ".specify",
+  "tests", "timetable_spec.md",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
