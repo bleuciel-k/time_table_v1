@@ -140,7 +140,7 @@ timetable/
 │  ├─ controller.py   # UI 이벤트 → 모델 조작 + 자동 저장, 편집 폼 상태 (Flet 비의존)
 │  ├─ sample.py       # 개발 확인용 샘플 데이터
 │  └─ ui/             # grid.py, editor.py, actions.py(셀·시간표 메뉴, 되돌리기 스낵바), settings.py
-├─ assets/fonts/      # CJK 폰트 (Noto Sans JP/KR 서브셋)
+├─ assets/fonts/      # CJK 폰트 (기기 폰트가 없을 때만 사용하는 예비용)
 ├─ config.py          # Firebase API key, DB URL
 ├─ tests/
 └─ pyproject.toml
@@ -167,8 +167,10 @@ timetable/
 
 - 입력: 시간표 1개, 설정, 형식, 배율 → 출력: `bytes`
 - 헤더(요일) + 좌측(교시) + 셀(색 배경, 과목명, 강의실)
-- 긴 과목명은 셀 폭에 맞춰 줄바꿈, 최대 3줄 후 말줄임
-- JPG는 흰 배경으로 합성 후 저장 (quality 92)
+- 긴 과목명은 셀 폭에 맞춰 줄바꿈(공백이 없는 한글·일본어는 글자 단위), 최대 3줄 후 말줄임
+- PNG는 배경 투명, JPG는 흰 배경으로 합성 후 저장 (quality 92)
+- 교시 시간 표시가 켜져 있으면 교시 칸에 시작·끝 시각도 그린다 (F9)
+- 폰트: 한글과 일본어를 **모두 덮는** 폰트만 사용한다(Android `/system/fonts/NotoSansCJK`, macOS `Arial Unicode`). 기기 폰트를 먼저 찾고 없을 때만 `assets/fonts` 번들 폰트를 쓴다 — APK 크기(N1)를 줄이기 위함. 한글 전용 폰트는 `会`·`応` 같은 일본어 한자가 빠져 두부(□)로 그려지므로 후보에서 제외
 
 ### 3.5 리스크
 
