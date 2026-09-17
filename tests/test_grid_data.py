@@ -1,4 +1,4 @@
-from app.model import DAY_LABELS, MAX_DAY_INDEX, Cell, Workspace, grid_cells
+from app.model import DAY_LABELS, MAX_DAY_INDEX, Cell, Settings, Workspace, grid_cells
 from app.sample import sample_data
 
 
@@ -19,10 +19,10 @@ def test_grid_cells_shape_and_positions():
 
 def test_grid_cells_follow_settings_and_hide_out_of_range():
     ws = Workspace()
-    ws.update_settings(days=6, periods=7)
+    ws.update_settings(Settings(days=6, periods=7))
     ws.set_cell("5-7", Cell(subject="토7"))
     assert grid_cells(ws.active, ws.data.settings)[6][5].subject == "토7"
-    ws.update_settings(days=5, periods=5)
+    ws.update_settings(Settings(days=5, periods=5))
     grid = grid_cells(ws.active, ws.data.settings)
     assert len(grid) == 5 and all(len(row) == 5 for row in grid)
     assert all(cell is None or cell.subject != "토7" for row in grid for cell in row)

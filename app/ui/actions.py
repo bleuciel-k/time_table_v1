@@ -10,6 +10,8 @@ import flet as ft
 from app.controller import ActionResult, AppController
 from app.model import DAY_LABELS, UNDO_WINDOW, parse_cell_key
 from app.ui.editor import open_cell_editor
+from app.ui.settings import open_settings
+from app.ui.timetables import open_timetable_list
 
 UNDO_SNACKBAR_MS = int(UNDO_WINDOW.total_seconds() * 1000)
 NOTICE_SNACKBAR_MS = 3000
@@ -97,7 +99,13 @@ class Actions:
         else:
             self.show_result(self.controller.paste_cell(key))
 
-    # ---- 시간표 (F3b, F4b, F4c)
+    # ---- 시간표 (F3b, F4b, F4c, F8) + 설정 (F9)
+
+    def open_timetables(self) -> None:
+        open_timetable_list(self.page, self.controller, self.show_result, self.render)
+
+    def open_settings(self) -> None:
+        open_settings(self.page, self.controller, self.show_result)
 
     def timetable_menu(self) -> ft.PopupMenuButton:
         c = self.controller
@@ -105,6 +113,9 @@ class Actions:
             icon=ft.Icons.MORE_VERT,
             tooltip="시간표 메뉴",
             items=[
+                ft.PopupMenuItem(
+                    "설정", icon=ft.Icons.SETTINGS, on_click=lambda e: self.open_settings()
+                ),
                 ft.PopupMenuItem(
                     "시간표 복제", icon=ft.Icons.COPY_ALL,
                     on_click=lambda e: self.show_result(c.duplicate_timetable()),

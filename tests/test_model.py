@@ -8,6 +8,7 @@ from app.model import (
     Cell,
     CellOccupiedError,
     ModelError,
+    Settings,
     ValidationError,
     Workspace,
     cell_key,
@@ -87,7 +88,7 @@ def test_set_cell_rejects_invalid_and_out_of_settings(ws):
         ws.set_cell("5-1", Cell(subject="토요일"))  # 기본 5요일
     with pytest.raises(ModelError):
         ws.set_cell("0-6", Cell(subject="6교시"))  # 기본 5교시
-    ws.update_settings(days=6, periods=7)
+    ws.update_settings(Settings(days=6, periods=7))
     ws.set_cell("5-7", Cell(subject="토요일 7교시"))
     assert ws.get_cell("5-7").subject == "토요일 7교시"
 
@@ -269,13 +270,13 @@ def test_add_rename_switch(ws):
 
 
 def test_update_settings_validation_keeps_hidden_cells(ws):
-    ws.update_settings(days=6, periods=7)
+    ws.update_settings(Settings(days=6, periods=7))
     ws.set_cell("5-7", Cell(subject="a"))
-    ws.update_settings(days=5, periods=5)
+    ws.update_settings(Settings(days=5, periods=5))
     assert ws.get_cell("5-7") is not None
     for days, periods in [(4, 5), (7, 5), (5, 0), (5, 8)]:
         with pytest.raises(ValidationError):
-            ws.update_settings(days, periods)
+            ws.update_settings(Settings(days, periods))
 
 
 def test_invalid_active_id_falls_back_to_first_visible(clock):
@@ -293,7 +294,14 @@ def test_dict_roundtrip_matches_spec_shape(ws):
     ws.set_cell("0-1", Cell(subject="알고리즘", room="K301", color="blue"))
     raw = to_dict(ws.data)
     assert raw["schema_version"] == 1
-    assert raw["settings"] == {"days": 5, "periods": 5}
+    assert raw["settings"] == {
+        "days": 5,
+        "periods": 5,
+        "show_times": False,
+        "start_time": "09:00",
+        "class_minutes": 50,
+        "break_minutes": 10,
+    }
     assert raw["timetables"][0]["cells"]["0-1"] == {
         "subject": "알고리즘", "room": "K301", "teacher": "", "memo": "", "color": "blue",
     }

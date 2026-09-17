@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from app.model import AppData, Cell, ModelError, Workspace, validate_cell
+from app.model import DEFAULT_NAME, AppData, Cell, ModelError, Settings, Workspace, validate_cell
 from app.palette import DEFAULT_COLOR
 from app.storage import Storage, StorageError
 
@@ -127,6 +127,26 @@ class AppController:
         return self._mutate(
             self.workspace.duplicate_timetable, lambda tt: f"복제했어요: {tt.name}"
         )
+
+    # ---- 여러 시간표 (F8)
+
+    def add_timetable(self, name: str = DEFAULT_NAME) -> ActionResult:
+        return self._mutate(
+            lambda: self.workspace.add_timetable(name), lambda tt: f"추가했어요: {tt.name}"
+        )
+
+    def rename_timetable(self, timetable_id: str, name: str) -> ActionResult:
+        return self._mutate(
+            lambda: self.workspace.rename_timetable(timetable_id, name), "이름을 바꿨어요."
+        )
+
+    def switch_timetable(self, timetable_id: str) -> ActionResult:
+        return self._mutate(lambda: self.workspace.switch_timetable(timetable_id))
+
+    # ---- 설정 (F9)
+
+    def update_settings(self, settings: Settings) -> ActionResult:
+        return self._mutate(lambda: self.workspace.update_settings(settings), "설정을 저장했어요.")
 
     # ---- 지우기 + 되돌리기 (F4)
 

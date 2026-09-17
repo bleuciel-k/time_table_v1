@@ -4,10 +4,20 @@ from typing import Callable
 
 import flet as ft
 
-from app.model import DAY_LABELS, PERIOD_MIN, Cell, Settings, Timetable, cell_key, grid_cells
+from app.model import (
+    DAY_LABELS,
+    PERIOD_MIN,
+    Cell,
+    Settings,
+    Timetable,
+    cell_key,
+    grid_cells,
+    period_times,
+)
 from app.palette import resolve_hex, text_color
 
 PERIOD_COL_WIDTH = 28
+TIME_COL_WIDTH = 46  # 교시 시간을 함께 표시할 때 (F9)
 HEADER_HEIGHT = 32
 CELL_HEIGHT = 84
 GAP = 2
@@ -23,18 +33,21 @@ def build_grid(
     on_cell_long_press: KeyHandler | None = None,
 ) -> ft.Control:
     """핸들러가 None이면 해당 조작 없음 (읽기 전용)."""
-    rows: list[ft.Control] = [_header(settings.days)]
+    times = period_times(settings) if settings.show_times else None
+    width = TIME_COL_WIDTH if times else PERIOD_COL_WIDTH
+    rows: list[ft.Control] = [_header(settings.days, width)]
     for offset, row in enumerate(grid_cells(timetable, settings)):
         period = PERIOD_MIN + offset
         cells = [
             _cell(cell, cell_key(day, period), on_cell_click, on_cell_long_press)
             for day, cell in enumerate(row)
         ]
-        rows.append(ft.Row([_period_label(period), *cells], spacing=GAP))
+        label = _period_label(period, times[offset] if times else None, width)
+        rows.append(ft.Row([label, *cells], spacing=GAP))
     return ft.Column(rows, spacing=GAP, scroll=ft.ScrollMode.AUTO, expand=True)
 
 
-def _header(days: int) -> ft.Row:
+def _header(days: int, label_width: float) -> ft.Row:
     labels = [
         ft.Container(
             ft.Text(DAY_LABELS[day], weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
@@ -44,13 +57,25 @@ def _header(days: int) -> ft.Row:
         )
         for day in range(days)
     ]
-    return ft.Row([ft.Container(width=PERIOD_COL_WIDTH), *labels], spacing=GAP)
+    return ft.Row([ft.Container(width=label_width), *labels], spacing=GAP)
 
 
-def _period_label(period: int) -> ft.Container:
+def _period_label(period: int, times: tuple[str, str] | None, width: float) -> ft.Container:
+    lines: list[ft.Control] = [ft.Text(str(period), color=ft.Colors.ON_SURFACE_VARIANT)]
+    if times:
+        lines += [
+            ft.Text(value, size=9, color=ft.Colors.ON_SURFACE_VARIANT, text_align=ft.TextAlign.CENTER)
+            for value in times
+        ]
     return ft.Container(
-        ft.Text(str(period), color=ft.Colors.ON_SURFACE_VARIANT),
-        width=PERIOD_COL_WIDTH,
+        ft.Column(
+            lines,
+            spacing=0,
+            tight=True,
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        width=width,
         height=CELL_HEIGHT,
         alignment=ft.Alignment.CENTER,
     )

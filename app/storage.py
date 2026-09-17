@@ -4,23 +4,23 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Literal
 
 from app.model import (
-    DAYS_CHOICES,
     OPTIONAL_FIELDS,
-    PERIOD_MAX,
-    PERIOD_MIN,
     SCHEMA_VERSION,
     AppData,
     Clock,
     ModelError,
+    Settings,
+    ValidationError,
     from_dict,
     parse_cell_key,
     to_dict,
     utc_now,
+    validate_settings,
 )
 from app.palette import DEFAULT_COLOR, PALETTE
 
@@ -89,11 +89,28 @@ def parse_document(text: str) -> tuple[AppData, bool]:
 
 def _clean(raw: dict[str, Any]) -> dict[str, Any]:
     """타입을 검사하고 알려진 필드만 남긴 dict를 만든다."""
-    settings = _expect(raw.get("settings", {}), dict, "settings")
-    days = _expect_int(settings.get("days", 5), "settings.days")
-    periods = _expect_int(settings.get("periods", 5), "settings.periods")
-    if days not in DAYS_CHOICES or not PERIOD_MIN <= periods <= PERIOD_MAX:
-        raise StorageFormatError(f"설정 범위 밖: days={days}, periods={periods}")
+    settings_raw = _expect(raw.get("settings", {}), dict, "settings")
+    defaults = Settings()
+    settings = Settings(
+        days=_expect_int(settings_raw.get("days", defaults.days), "settings.days"),
+        periods=_expect_int(settings_raw.get("periods", defaults.periods), "settings.periods"),
+        show_times=_expect(
+            settings_raw.get("show_times", defaults.show_times), bool, "settings.show_times"
+        ),
+        start_time=_expect(
+            settings_raw.get("start_time", defaults.start_time), str, "settings.start_time"
+        ),
+        class_minutes=_expect_int(
+            settings_raw.get("class_minutes", defaults.class_minutes), "settings.class_minutes"
+        ),
+        break_minutes=_expect_int(
+            settings_raw.get("break_minutes", defaults.break_minutes), "settings.break_minutes"
+        ),
+    )
+    try:
+        validate_settings(settings)
+    except ValidationError as ex:
+        raise StorageFormatError(str(ex)) from ex
 
     timetables: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -130,7 +147,7 @@ def _clean(raw: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema_version": raw["schema_version"],
         "active_id": _expect(raw.get("active_id", ""), str, "active_id"),
-        "settings": {"days": days, "periods": periods},
+        "settings": asdict(settings),
         "timetables": timetables,
     }
 

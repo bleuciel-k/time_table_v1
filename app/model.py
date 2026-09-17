@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
@@ -39,7 +39,7 @@ class ModelError(ValueError):
 
 class ValidationError(ModelError):
     def __init__(self, errors: dict[str, str]) -> None:
-        super().__init__("; ".join(f"{k}: {v}" for k, v in errors.items()))
+        super().__init__(" ".join(errors.values()))  # 사용자에게 그대로 보여줄 문구
         self.errors = errors
 
 
@@ -84,6 +84,16 @@ class Cell:
 class Settings:
     days: int = 5
     periods: int = 5
+    show_times: bool = False  # 교시별 시간 표시 (F9)
+    start_time: str = "09:00"  # 1교시 시작 시각
+    class_minutes: int = 50
+    break_minutes: int = 10
+
+
+def settings_from_dict(raw: dict[str, Any]) -> Settings:
+    """알려진 필드만 읽고 없는 값은 기본값으로 채운다 (구버전 파일 호환)."""
+    defaults = Settings()
+    return Settings(**{f.name: raw.get(f.name, getattr(defaults, f.name)) for f in fields(Settings)})
 
 
 @dataclass
@@ -129,7 +139,7 @@ def from_dict(raw: dict[str, Any]) -> AppData:
     return AppData(
         schema_version=raw.get("schema_version", SCHEMA_VERSION),
         active_id=raw.get("active_id", ""),
-        settings=Settings(days=settings_raw.get("days", 5), periods=settings_raw.get("periods", 5)),
+        settings=settings_from_dict(settings_raw),
         timetables=timetables,
     )
 
@@ -145,6 +155,33 @@ def grid_cells(timetable: Timetable, settings: Settings) -> list[list[Cell | Non
         [timetable.cells.get(f"{day}-{period}") for day in range(settings.days)]
         for period in range(PERIOD_MIN, settings.periods + 1)
     ]
+
+
+def period_times(settings: Settings) -> list[tuple[str, str]]:
+    """교시별 (시작, 끝) 시각. `show_times`와 무관하게 계산만 한다 (F9)."""
+    start = parse_time(settings.start_time)
+    times = []
+    for _ in range(settings.periods):
+        end = start + settings.class_minutes
+        times.append((format_time(start), format_time(end)))
+        start = end + settings.break_minutes
+    return times
+
+
+def parse_time(value: str) -> int:
+    """`"HH:MM"` → 자정 기준 분."""
+    try:
+        hour_s, minute_s = value.split(":")
+        hour, minute = int(hour_s), int(minute_s)
+    except ValueError as ex:
+        raise ModelError(f"잘못된 시각: {value!r}") from ex
+    if len(value) != 5 or not (0 <= hour < 24 and 0 <= minute < 60):
+        raise ModelError(f"잘못된 시각: {value!r}")
+    return hour * 60 + minute
+
+
+def format_time(minutes: int) -> str:
+    return f"{minutes // 60 % 24:02d}:{minutes % 60:02d}"
 
 
 # ---------------------------------------------------------------- 검증
@@ -196,6 +233,14 @@ def validate_settings(settings: Settings) -> None:
         errors["days"] = f"요일 수는 {DAYS_CHOICES} 중 하나여야 합니다."
     if not PERIOD_MIN <= settings.periods <= PERIOD_MAX:
         errors["periods"] = f"교시 수는 {PERIOD_MIN}~{PERIOD_MAX}이어야 합니다."
+    try:
+        parse_time(settings.start_time)
+    except ModelError:
+        errors["start_time"] = "시작 시각은 HH:MM 형식이어야 합니다."
+    if not 1 <= settings.class_minutes <= 180:
+        errors["class_minutes"] = "수업 시간은 1~180분이어야 합니다."
+    if not 0 <= settings.break_minutes <= 120:
+        errors["break_minutes"] = "쉬는 시간은 0~120분이어야 합니다."
     if errors:
         raise ValidationError(errors)
 
@@ -347,12 +392,11 @@ class Workspace:
 
     # ---- 설정 (F9)
 
-    def update_settings(self, days: int, periods: int) -> None:
-        new = Settings(days=days, periods=periods)
-        validate_settings(new)
+    def update_settings(self, settings: Settings) -> None:
+        validate_settings(settings)
         self._invalidate_undo()
         # 범위 밖 셀은 지우지 않고 숨긴다 (설정을 되돌리면 다시 보임)
-        self.data.settings = new
+        self.data.settings = replace(settings)
 
     # ---- 되돌리기 (F4)
 

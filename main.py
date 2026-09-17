@@ -17,7 +17,7 @@ def main(page: ft.Page) -> None:
     controller, warnings = AppController.open(Storage(), seed=seed)
     workspace = controller.workspace
 
-    title = ft.Text()
+    title = ft.Text(weight=ft.FontWeight.BOLD)
     body = ft.Container(expand=True)
 
     def render() -> None:
@@ -33,7 +33,13 @@ def main(page: ft.Page) -> None:
 
     actions = Actions(page, controller, render)
     page.appbar = ft.AppBar(
-        title=title,
+        title=ft.Container(
+            ft.Row([title, ft.Icon(ft.Icons.ARROW_DROP_DOWN)], tight=True, spacing=0),
+            on_click=None if controller.read_only else (lambda e: actions.open_timetables()),
+            ink=not controller.read_only,
+            padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+            border_radius=ft.BorderRadius.all(8),
+        ),
         actions=None if controller.read_only else [actions.timetable_menu()],
     )
     page.add(ft.SafeArea(body, expand=True))
