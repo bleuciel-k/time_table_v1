@@ -22,7 +22,7 @@
 ### 2.1 범위
 
 - **포함**: 주간 시간표(기본 월~금 × 1~5교시, 설정으로 월~토 / 최대 7교시), 여러 시간표 관리, 색상, 복사·삭제, 자동 저장, 이미지 내보내기, 계정 동기화
-- **제외(v1)**: 홈 화면 위젯, 알림, iOS, 시간표 공유 링크
+- **제외(v1)**: 홈 화면 위젯, 알림, iOS, 시간표 공유 링크, 앱 내 회원가입(계정은 Firebase 콘솔에서 생성)
 
 ### 2.2 기능 요구사항
 
@@ -162,7 +162,9 @@ timetable/
 } } } }
 ```
 
-- 토큰은 앱 저장소의 별도 파일에 저장 (refresh token만 보관)
+- 토큰은 앱 저장소의 별도 파일 `auth.json`에 저장 (`uid`, `email`, `refresh_token`만 보관, 원자적 쓰기). ID token은 메모리에만 두고 만료 60초 전에 갱신
+- 갱신 실패 처리: 네트워크 오류는 토큰을 유지(오프라인, 다음에 재시도), 서버가 거부(`TOKEN_EXPIRED`, `INVALID_REFRESH_TOKEN`, `USER_DISABLED`, `USER_NOT_FOUND`)하면 `auth.json`을 지우고 재로그인 요청
+- 로그인 오류 코드 → 메시지: `INVALID_PASSWORD`/`INVALID_LOGIN_CREDENTIALS` → 비밀번호 틀림(이메일 열거 보호가 켜진 프로젝트는 계정 없음과 구분 불가), `EMAIL_NOT_FOUND` → 계정 없음, `INVALID_EMAIL`, `USER_DISABLED`, `TOO_MANY_ATTEMPTS_TRY_LATER`, 연결 실패·시간 초과 → 네트워크
 
 ### 3.4 이미지 내보내기 설계
 
@@ -197,13 +199,14 @@ timetable/
 | T8 | 내보내기 UI 연결 | 실기기에서 F6 확인 |
 | T9 | `sync.py` 인증 | 로그인·갱신·실패 처리 테스트 통과(모킹) |
 | T10 | `sync.py` 데이터 동기화 + 병합 | 병합 테스트 통과, 기기 2대(또는 PC+기기)로 F7 확인 |
-| T11 | 릴리스 빌드 + 전체 검증 | 5장 체크리스트 전부 통과 |
+| T11 | 전체 GUI 다듬기 (T10까지 추가된 화면 포함, 레이아웃·여백·아이콘·문구 통일) | PC·실기기에서 전 화면 수동 확인, 기존 테스트 통과 |
+| T12 | 릴리스 빌드 + 전체 검증 | 5장 체크리스트 전부 통과 |
 
 ---
 
 ## 4. Implement (구현 규칙)
 
-- T0 → T11 순서대로, 한 태스크씩 구현 후 DoD 확인
+- T0 → T12 순서대로, 한 태스크씩 구현 후 DoD 확인
 - 타입 힌트 + `dataclass` 사용, UI 코드에 비즈니스 로직 금지 (P5)
 - 저장 경로는 환경변수 `FLET_APP_STORAGE_DATA` 사용 (`python main.py`로 직접 실행 시 `./.data` 폴백. `flet run`은 이 변수를 `./.flet/storage/data`로 지정함). `.data/`, `.flet/`은 `.gitignore`에 추가
 - 개발용: 환경변수 `TIMETABLE_SAMPLE=1`이면 첫 실행(저장 파일 없음) 시 샘플 데이터로 시작. 미설정 시 빈 시간표로 시작
