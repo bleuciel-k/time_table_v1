@@ -10,6 +10,7 @@ import flet as ft
 from app.controller import ActionResult, AppController
 from app.model import DAY_LABELS, UNDO_WINDOW, parse_cell_key
 from app.ui.editor import open_cell_editor
+from app.ui.export import open_export_sheet
 from app.ui.settings import open_settings
 from app.ui.timetables import open_timetable_list
 
@@ -18,10 +19,17 @@ NOTICE_SNACKBAR_MS = 3000
 
 
 class Actions:
-    def __init__(self, page: ft.Page, controller: AppController, render: Callable[[], None]) -> None:
+    def __init__(
+        self,
+        page: ft.Page,
+        controller: AppController,
+        render: Callable[[], None],
+        picker: ft.FilePicker | None = None,
+    ) -> None:
         self.page = page
         self.controller = controller
         self.render = render
+        self.picker = picker
 
     # ---- 결과 표시
 
@@ -107,12 +115,21 @@ class Actions:
     def open_settings(self) -> None:
         open_settings(self.page, self.controller, self.show_result)
 
+    def open_export(self) -> None:
+        if self.picker is None:
+            self.show_result(ActionResult(False, "이 환경에서는 파일 저장을 쓸 수 없습니다."))
+            return
+        open_export_sheet(self.page, self.controller, self.picker, self.show_result)
+
     def timetable_menu(self) -> ft.PopupMenuButton:
         c = self.controller
         return ft.PopupMenuButton(
             icon=ft.Icons.MORE_VERT,
             tooltip="시간표 메뉴",
             items=[
+                ft.PopupMenuItem(
+                    "이미지로 저장", icon=ft.Icons.IMAGE, on_click=lambda e: self.open_export()
+                ),
                 ft.PopupMenuItem(
                     "설정", icon=ft.Icons.SETTINGS, on_click=lambda e: self.open_settings()
                 ),

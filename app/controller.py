@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Any, Callable
 
+from app.exporter import ExportOptions, export_filename, render
 from app.model import DEFAULT_NAME, AppData, Cell, ModelError, Settings, Workspace, validate_cell
 from app.palette import DEFAULT_COLOR
 from app.storage import Storage, StorageError
@@ -127,6 +129,16 @@ class AppController:
         return self._mutate(
             self.workspace.duplicate_timetable, lambda tt: f"복제했어요: {tt.name}"
         )
+
+    # ---- 이미지 내보내기 (F6)
+
+    def export_image(
+        self, options: ExportOptions, today: date | None = None
+    ) -> tuple[bytes, str]:
+        """현재 시간표를 이미지로 그려 (bytes, 파일명)을 돌려준다. 저장 위치는 UI가 묻는다."""
+        timetable = self.workspace.active
+        image = render(timetable, self.workspace.data.settings, options)
+        return image, export_filename(timetable.name, today or date.today(), options.fmt)
 
     # ---- 여러 시간표 (F8)
 

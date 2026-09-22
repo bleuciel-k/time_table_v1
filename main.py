@@ -31,7 +31,7 @@ def main(page: ft.Page) -> None:
         )
         page.update()
 
-    actions = Actions(page, controller, render)
+    actions = Actions(page, controller, render, picker=ft.FilePicker())
     page.appbar = ft.AppBar(
         title=ft.Container(
             ft.Row([title, ft.Icon(ft.Icons.ARROW_DROP_DOWN)], tight=True, spacing=0),
