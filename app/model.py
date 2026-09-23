@@ -29,8 +29,18 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+
 def format_timestamp(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return dt.astimezone(timezone.utc).strftime(TIMESTAMP_FORMAT)
+
+
+def parse_timestamp(value: str) -> datetime | None:
+    try:
+        return datetime.strptime(value, TIMESTAMP_FORMAT).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
 
 
 class ModelError(ValueError):
@@ -110,6 +120,7 @@ class AppData:
     schema_version: int = SCHEMA_VERSION
     active_id: str = ""
     settings: Settings = field(default_factory=Settings)
+    settings_updated_at: str = ""  # 설정 동기화용 (spec 2.4). ""이면 한 번도 바꾸지 않음
     timetables: list[Timetable] = field(default_factory=list)
 
     def visible(self) -> list[Timetable]:
@@ -140,6 +151,7 @@ def from_dict(raw: dict[str, Any]) -> AppData:
         schema_version=raw.get("schema_version", SCHEMA_VERSION),
         active_id=raw.get("active_id", ""),
         settings=settings_from_dict(settings_raw),
+        settings_updated_at=raw.get("settings_updated_at", ""),
         timetables=timetables,
     )
 
@@ -397,6 +409,15 @@ class Workspace:
         self._invalidate_undo()
         # 범위 밖 셀은 지우지 않고 숨긴다 (설정을 되돌리면 다시 보임)
         self.data.settings = replace(settings)
+        self.data.settings_updated_at = format_timestamp(self._clock())
+
+    # ---- 동기화 (F7)
+
+    def replace_data(self, data: AppData) -> None:
+        """병합 결과로 교체한다. 되돌리기 기록은 교체 전 데이터 기준이라 버린다."""
+        self._invalidate_undo()
+        self.data = data
+        self._ensure_active()
 
     # ---- 되돌리기 (F4)
 
@@ -436,7 +457,16 @@ class Workspace:
             raise ModelError(f"현재 설정({s.days}요일, {s.periods}교시) 밖의 셀: {key}")
 
     def _touch(self, tt: Timetable) -> None:
-        tt.updated_at = format_timestamp(self._clock())
+        """변경 시각을 1초 단위로 반드시 앞당긴다.
+
+        같은 초 안의 두 변경이 같은 값을 가지면 병합에서 뒤의 변경이 원격에 밀리므로(동률은
+        원격 우선, spec 3.3), 직전 값보다 항상 크게 만든다.
+        """
+        now = self._clock()
+        previous = parse_timestamp(tt.updated_at)
+        if previous is not None and now <= previous:
+            now = previous + timedelta(seconds=1)
+        tt.updated_at = format_timestamp(now)
 
     def _invalidate_undo(self) -> None:
         self._undo = None

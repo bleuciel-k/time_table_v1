@@ -1,4 +1,4 @@
-"""셀 메뉴(편집/복사/붙여넣기/삭제), 시간표 메뉴(복제/비우기/삭제), 결과 스낵바와 되돌리기 (F3, F4).
+"""셀 메뉴(편집/복사/붙여넣기/삭제), 시간표 메뉴(복제/비우기/삭제/계정), 결과 스낵바와 되돌리기 (F3, F4, F7).
 
 판단은 controller가 하고 여기서는 표시와 연결만 한다 (P5).
 """
@@ -7,8 +7,9 @@ from typing import Callable
 
 import flet as ft
 
-from app.controller import ActionResult, AppController
+from app.controller import ActionResult, AppController, SyncManager
 from app.model import DAY_LABELS, UNDO_WINDOW, parse_cell_key
+from app.ui.account import open_account
 from app.ui.editor import open_cell_editor
 from app.ui.export import open_export_sheet
 from app.ui.settings import open_settings
@@ -25,11 +26,13 @@ class Actions:
         controller: AppController,
         render: Callable[[], None],
         picker: ft.FilePicker | None = None,
+        sync: SyncManager | None = None,
     ) -> None:
         self.page = page
         self.controller = controller
         self.render = render
         self.picker = picker
+        self.sync = sync
 
     # ---- 결과 표시
 
@@ -121,6 +124,9 @@ class Actions:
             return
         open_export_sheet(self.page, self.controller, self.picker, self.show_result)
 
+    def open_account(self) -> None:
+        open_account(self.page, self.sync, self.show_result)
+
     def timetable_menu(self) -> ft.PopupMenuButton:
         c = self.controller
         return ft.PopupMenuButton(
@@ -132,6 +138,9 @@ class Actions:
                 ),
                 ft.PopupMenuItem(
                     "설정", icon=ft.Icons.SETTINGS, on_click=lambda e: self.open_settings()
+                ),
+                ft.PopupMenuItem(
+                    "계정", icon=ft.Icons.ACCOUNT_CIRCLE, on_click=lambda e: self.open_account()
                 ),
                 ft.PopupMenuItem(
                     "시간표 복제", icon=ft.Icons.COPY_ALL,

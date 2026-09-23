@@ -148,6 +148,9 @@ def _clean(raw: dict[str, Any]) -> dict[str, Any]:
         "schema_version": raw["schema_version"],
         "active_id": _expect(raw.get("active_id", ""), str, "active_id"),
         "settings": asdict(settings),
+        "settings_updated_at": _expect(
+            raw.get("settings_updated_at", ""), str, "settings_updated_at"
+        ),
         "timetables": timetables,
     }
 
