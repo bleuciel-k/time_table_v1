@@ -5,3 +5,5 @@ build/
 .data/
 .flet/
 config.py
+.idea/
+node_modules/
