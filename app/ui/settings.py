@@ -7,7 +7,7 @@ import flet as ft
 
 from app import design as d
 from app.controller import ActionResult, AppController
-from app.model import DAYS_CHOICES, PERIOD_MAX, PERIOD_MIN, Settings
+from app.model import DAYS_CHOICES, PERIOD_MAX, PERIOD_MIN, Settings, lunch_time
 from app.palette import BACKGROUND_LABELS, BACKGROUNDS
 from app.ui import theme as t
 
@@ -29,6 +29,14 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
     time_fields = ft.Column(
         [start_time, class_minutes, break_minutes], tight=True, spacing=d.SPACE_SM
     )
+    lunch_after_row = ft.Row(wrap=True, spacing=d.SPACE_XS, run_spacing=d.SPACE_XS)
+    lunch_minutes = t.text_field("점심시간(분)", value=str(draft.lunch_minutes))
+    lunch_hint = t.label("")
+    lunch_fields = ft.Column(
+        [t.label("몇 교시 뒤"), lunch_after_row, lunch_minutes, lunch_hint],
+        tight=True,
+        spacing=d.SPACE_SM,
+    )
 
     def close() -> None:
         sheet.open = False
@@ -42,6 +50,21 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
     def choose_periods(value: int) -> None:
         nonlocal draft
         draft = replace(draft, periods=value)
+        sync()
+
+    def choose_lunch_after(value: int) -> None:
+        nonlocal draft
+        draft = replace(draft, lunch_after=value)
+        sync()
+
+    def toggle_lunch(e: ft.Event[ft.Switch]) -> None:
+        nonlocal draft
+        draft = replace(draft, lunch=bool(e.control.value))
+        sync()
+
+    def toggle_memo(e: ft.Event[ft.Switch]) -> None:
+        nonlocal draft
+        draft = replace(draft, show_memo=bool(e.control.value))
         sync()
 
     def choose_background(value: str) -> None:
@@ -61,6 +84,7 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
                 start_time=(start_time.value or "").strip(),
                 class_minutes=int(class_minutes.value),
                 break_minutes=int(break_minutes.value),
+                lunch_minutes=int(lunch_minutes.value),
             )
         except (TypeError, ValueError):
             show_result(ActionResult(False, NOT_A_NUMBER))
@@ -70,14 +94,19 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
             close()
         show_result(result)
 
-    show_switch = ft.Switch(
-        label="교시 시간 표시",
-        value=draft.show_times,
-        on_change=toggle_times,
-        active_color=d.ON_PRIMARY,
-        active_track_color=d.INK,
-        label_text_style=t.style(d.BODY_MD, d.BODY),
-    )
+    def switch(label: str, value: bool, on_change) -> ft.Switch:
+        return ft.Switch(
+            label=label,
+            value=value,
+            on_change=on_change,
+            active_color=d.ON_PRIMARY,
+            active_track_color=d.INK,
+            label_text_style=t.style(d.BODY_MD, d.BODY),
+        )
+
+    show_switch = switch("교시 시간 표시", draft.show_times, toggle_times)
+    lunch_switch = switch("점심시간", draft.lunch, toggle_lunch)
+    memo_switch = switch("셀에 메모 표시 (작은 글씨 2줄)", draft.show_memo, toggle_memo)
 
     def background_swatch(key: str) -> ft.Container:
         selected = draft.background == key
@@ -105,6 +134,21 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
             for value in range(PERIOD_MIN, PERIOD_MAX + 1)
         ]
         time_fields.visible = draft.show_times
+        lunch_after_row.controls = [
+            t.chip(
+                f"{value}교시",
+                draft.lunch_after == value,
+                lambda v=value: choose_lunch_after(v),
+            )
+            for value in range(PERIOD_MIN, min(draft.periods, PERIOD_MAX - 1) + 1)
+        ]
+        lunch_fields.visible = draft.lunch
+        times = lunch_time(draft)
+        lunch_hint.value = (
+            f"{times[0]}–{times[1]}"
+            if times
+            else "마지막 교시 앞에 와야 표시됩니다."
+        )
         page.update()
 
     sheet = t.sheet(
@@ -114,10 +158,13 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
             days_row,
             t.label("교시 수"),
             periods_row,
-            background_label,
-            background_row,
             show_switch,
             time_fields,
+            lunch_switch,
+            lunch_fields,
+            memo_switch,
+            background_label,
+            background_row,
             t.actions_row(
                 t.secondary_button("취소", lambda e: close()),
                 t.primary_button("저장", save),

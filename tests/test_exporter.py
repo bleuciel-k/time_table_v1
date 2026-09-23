@@ -207,3 +207,33 @@ def test_chosen_background_applies_to_jpg(workspace):
     data = render(workspace.active, settings, ExportOptions(fmt="jpg"))
     r, g, b = open_image(data).convert("RGB").getpixel((1, 1))
     assert (r, g, b) != (255, 255, 255) and min(r, g, b) > 220  # 연한 민트
+
+
+# ---- 점심시간 + 메모 (F9)
+
+
+def test_lunch_band_adds_height_and_shifts_later_periods(workspace):
+    from dataclasses import replace
+
+    plain = replace(workspace.data.settings, periods=6)
+    with_lunch = replace(plain, lunch=True, lunch_after=4)
+    tall, short = Layout(with_lunch), Layout(plain)
+    assert tall.height > short.height
+    assert tall.cell_box(0, 3)[1] == short.cell_box(0, 3)[1]  # 점심 앞 교시는 그대로
+    assert tall.cell_box(0, 4)[1] > short.cell_box(0, 4)[1]  # 뒤 교시는 밀린다
+
+    left, top, right, bottom = tall.lunch_box()
+    assert top > tall.cell_box(0, 3)[3] and bottom < tall.cell_box(0, 4)[1]
+    assert render(workspace.active, with_lunch)  # 그려진다
+
+
+def test_memo_is_drawn_only_when_enabled(workspace):
+    from dataclasses import replace
+
+    from app.model import Cell
+
+    workspace.set_cell("0-1", Cell(subject="알고리즘", memo="과제 제출일 확인"))
+    settings = workspace.data.settings
+    without = render(workspace.active, settings)
+    with_memo = render(workspace.active, replace(settings, show_memo=True))
+    assert with_memo != without

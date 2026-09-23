@@ -98,6 +98,10 @@ class Settings:
     class_minutes: int = 50
     break_minutes: int = 10
     background: str = DEFAULT_BACKGROUND  # 화면·내보내기 배경색 (F9)
+    lunch: bool = False  # 점심시간 표시 (F9)
+    lunch_after: int = 4  # 몇 교시 뒤에 오는지
+    lunch_minutes: int = 60
+    show_memo: bool = False  # 그리드 셀에 메모 표시 (F9)
 
 
 def settings_from_dict(raw: dict[str, Any]) -> Settings:
@@ -170,14 +174,33 @@ def grid_cells(timetable: Timetable, settings: Settings) -> list[list[Cell | Non
 
 
 def period_times(settings: Settings) -> list[tuple[str, str]]:
-    """교시별 (시작, 끝) 시각. `show_times`와 무관하게 계산만 한다 (F9)."""
+    """교시별 (시작, 끝) 시각. `show_times`와 무관하게 계산만 한다 (F9).
+
+    점심시간이 켜져 있으면 그 자리의 쉬는 시간 대신 점심시간 길이를 쓴다.
+    """
     start = parse_time(settings.start_time)
     times = []
-    for _ in range(settings.periods):
+    for index in range(settings.periods):
         end = start + settings.class_minutes
         times.append((format_time(start), format_time(end)))
-        start = end + settings.break_minutes
+        gap = settings.break_minutes
+        if has_lunch(settings) and settings.lunch_after == index + 1:
+            gap = settings.lunch_minutes
+        start = end + gap
     return times
+
+
+def has_lunch(settings: Settings) -> bool:
+    """점심시간이 켜져 있고 교시 사이에 자리가 있는지 (F9)."""
+    return settings.lunch and 1 <= settings.lunch_after < settings.periods
+
+
+def lunch_time(settings: Settings) -> tuple[str, str] | None:
+    """점심시간 (시작, 끝). 표시하지 않으면 None."""
+    if not has_lunch(settings):
+        return None
+    start = period_times(settings)[settings.lunch_after - 1][1]
+    return start, format_time(parse_time(start) + settings.lunch_minutes)
 
 
 def parse_time(value: str) -> int:
@@ -255,6 +278,10 @@ def validate_settings(settings: Settings) -> None:
         errors["break_minutes"] = "쉬는 시간은 0~120분이어야 합니다."
     if settings.background not in BACKGROUNDS:
         errors["background"] = "알 수 없는 배경색입니다."
+    if not PERIOD_MIN <= settings.lunch_after <= PERIOD_MAX - 1:
+        errors["lunch_after"] = f"점심시간은 {PERIOD_MIN}~{PERIOD_MAX - 1}교시 뒤여야 합니다."
+    if not 1 <= settings.lunch_minutes <= 180:
+        errors["lunch_minutes"] = "점심시간은 1~180분이어야 합니다."
     if errors:
         raise ValidationError(errors)
 

@@ -9,9 +9,10 @@ from app import design as d
 WEIGHTS = {400: ft.FontWeight.W_400, 500: ft.FontWeight.W_500, 600: ft.FontWeight.W_600}
 
 
-def build_theme() -> ft.Theme:
-    """라이트 고정 테마. 기기 기본 폰트를 쓴다 (Haas는 유료, APK 크기도 고려)."""
+def build_theme(font_family: str | None = d.FONT_FAMILY) -> ft.Theme:
+    """라이트 고정 테마. 폰트는 앱에 넣은 본고딕(한·영·일)을 쓴다."""
     return ft.Theme(
+        font_family=font_family,
         color_scheme=ft.ColorScheme(
             primary=d.INK,
             on_primary=d.ON_PRIMARY,

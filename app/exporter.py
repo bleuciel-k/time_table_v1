@@ -6,26 +6,40 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 from functools import lru_cache
 from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont
 
 from app import design as d
-from app.model import DAY_LABELS, PERIOD_MIN, Cell, Settings, Timetable, grid_cells, period_times
+from app.model import (
+    DAY_LABELS,
+    PERIOD_MIN,
+    Cell,
+    Settings,
+    Timetable,
+    grid_cells,
+    has_lunch,
+    lunch_time,
+    period_times,
+)
 from app.palette import DEFAULT_BACKGROUND, background_hex, resolve_hex, text_color
 
 FORMATS = ("png", "jpg")
 SCALES = (1, 2)
 JPEG_QUALITY = 92
 MAX_SUBJECT_LINES = 3
+MAX_MEMO_LINES = 2
 ELLIPSIS = "…"
 
 # 기기에 있는 CJK 폰트를 먼저 쓰고(APK 크기 절약), 없으면 번들 폰트를 쓴다.
 # 한글과 일본어를 모두 덮는 폰트여야 한다 — 예: macOS의 AppleSDGothicNeo는
 # 한글은 되지만 会·応 같은 일본어 한자가 없어 두부(□)로 그려진다.
+BUNDLED_FONT = str(Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoSansCJKkr-Regular.otf")
+
 FONT_CANDIDATES = (
-    "assets/fonts/NotoSansCJK-Regular.ttc",
+    BUNDLED_FONT,  # 앱에 넣은 폰트 (화면과 같은 글꼴)
     "/system/fonts/NotoSansCJK-Regular.ttc",  # Android (한·중·일 통합)
     "/system/fonts/NotoSerifCJK-Regular.ttc",
     "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",  # macOS
@@ -71,6 +85,11 @@ class Layout:
         return 34 * self.scale
 
     @property
+    def lunch_height(self) -> int:
+        """점심시간 띠 높이 (F9). 표시하지 않으면 0."""
+        return (30 * self.scale + self.gap) if has_lunch(self.settings) else 0
+
+    @property
     def cell_width(self) -> int:
         return 104 * self.scale
 
@@ -96,6 +115,7 @@ class Layout:
             + self.gap
             + rows * self.cell_height
             + (rows - 1) * self.gap
+            + self.lunch_height
         )
 
     def cell_box(self, day: int, period_index: int) -> tuple[int, int, int, int]:
@@ -105,8 +125,16 @@ class Layout:
             + self.header_height
             + self.gap
             + period_index * (self.cell_height + self.gap)
+            + (self.lunch_height if period_index >= self.settings.lunch_after else 0)
         )
         return left, top, left + self.cell_width, top + self.cell_height
+
+    def lunch_box(self) -> tuple[int, int, int, int]:
+        """점심시간 띠 영역 (표 전체 폭)."""
+        left = self.padding + self.label_width + self.gap
+        _, _, right, bottom = self.cell_box(self.settings.days - 1, self.settings.lunch_after - 1)
+        top = bottom + self.gap
+        return left, top, right, top + self.lunch_height - self.gap
 
 
 def render(
@@ -129,6 +157,7 @@ def render(
     draw = ImageDraw.Draw(image)
     _draw_header(draw, layout)
     _draw_period_labels(draw, layout)
+    _draw_lunch(draw, layout)
     for period_index, row in enumerate(grid_cells(timetable, settings)):
         for day, cell in enumerate(row):
             _draw_cell(draw, layout, day, period_index, cell)
@@ -176,6 +205,21 @@ def _draw_period_labels(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
                   fill=LABEL_COLOR, anchor="mm")
 
 
+def _draw_lunch(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
+    """교시 사이의 점심시간 띠 (F9)."""
+    settings = layout.settings
+    times = lunch_time(settings)
+    if times is None:
+        return
+    box = layout.lunch_box()
+    draw.rounded_rectangle(box, radius=layout.radius, outline=EMPTY_CELL_BORDER,
+                           width=max(1, layout.scale))
+    caption = f"점심시간 · {times[0]}–{times[1]}" if settings.show_times else "점심시간"
+    left, top, right, bottom = box
+    draw.text((((left + right) // 2), (top + bottom) // 2), caption,
+              font=load_font(11 * layout.scale), fill=LABEL_COLOR, anchor="mm")
+
+
 def _draw_cell(
     draw: ImageDraw.ImageDraw,
     layout: Layout,
@@ -197,14 +241,23 @@ def _draw_cell(
     subject_font = load_font(13 * layout.scale)  # 화면 셀과 같은 크기
     room_font = load_font(11 * layout.scale)
 
-    lines = wrap_text(cell.subject, subject_font, inner_width, MAX_SUBJECT_LINES)
+    memo_font = load_font(9 * layout.scale)
+
+    # (글자, 폰트) 순서로 쌓는다: 과목명 최대 3줄 → 강의실 1줄 → 메모 최대 2줄 (F9)
+    rows: list[tuple[str, ImageFont.FreeTypeFont]] = [
+        (line, subject_font) for line in wrap_text(cell.subject, subject_font, inner_width, MAX_SUBJECT_LINES)
+    ]
     if cell.room:
-        lines = lines + wrap_text(cell.room, room_font, inner_width, 1)
+        rows += [(line, room_font) for line in wrap_text(cell.room, room_font, inner_width, 1)]
+    if layout.settings.show_memo and cell.memo:
+        rows += [
+            (line, memo_font)
+            for line in wrap_text(cell.memo, memo_font, inner_width, MAX_MEMO_LINES)
+        ]
     line_height = 15 * layout.scale
     center_x = (left + right) // 2
-    start_y = (top + bottom) // 2 - (len(lines) - 1) * line_height // 2
-    for index, line in enumerate(lines):
-        font = subject_font if index < len(lines) - (1 if cell.room else 0) else room_font
+    start_y = (top + bottom) // 2 - (len(rows) - 1) * line_height // 2
+    for index, (line, font) in enumerate(rows):
         draw.text((center_x, start_y + index * line_height), line, font=font, fill=fill,
                   anchor="mm")
 

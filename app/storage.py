@@ -107,6 +107,16 @@ def _clean(raw: dict[str, Any]) -> dict[str, Any]:
             settings_raw.get("break_minutes", defaults.break_minutes), "settings.break_minutes"
         ),
         background=_background(settings_raw.get("background", defaults.background)),
+        lunch=_expect(settings_raw.get("lunch", defaults.lunch), bool, "settings.lunch"),
+        lunch_after=_expect_int(
+            settings_raw.get("lunch_after", defaults.lunch_after), "settings.lunch_after"
+        ),
+        lunch_minutes=_expect_int(
+            settings_raw.get("lunch_minutes", defaults.lunch_minutes), "settings.lunch_minutes"
+        ),
+        show_memo=_expect(
+            settings_raw.get("show_memo", defaults.show_memo), bool, "settings.show_memo"
+        ),
     )
     try:
         validate_settings(settings)

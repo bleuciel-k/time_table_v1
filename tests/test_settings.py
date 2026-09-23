@@ -1,6 +1,7 @@
-"""설정 (F9): 요일·교시 수, 교시별 시간 표시."""
+"""설정 (F9): 요일·교시 수, 교시별 시간 표시, 점심시간, 메모 표시."""
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,8 @@ from app.model import (
     ValidationError,
     Workspace,
     format_time,
+    has_lunch,
+    lunch_time,
     parse_time,
     period_times,
     to_dict,
@@ -161,3 +164,51 @@ def test_read_only_blocks_settings(tmp_path):
     ctrl, _ = AppController.open(Storage(tmp_path))
     assert ctrl.update_settings(Settings(days=6)) == ActionResult(False, READ_ONLY_MESSAGE)
     assert ctrl.workspace.data.settings.days == 5
+
+
+# ---- 점심시간 + 메모 표시 (F9)
+
+
+def test_period_times_insert_lunch():
+    plain = Settings(periods=6)
+    with_lunch = replace(plain, lunch=True, lunch_after=4, lunch_minutes=50)
+    assert has_lunch(with_lunch)
+    assert period_times(plain)[4][0] == "13:00"  # 쉬는 시간 10분
+    assert period_times(with_lunch)[4][0] == "13:40"  # 점심 50분
+    assert period_times(with_lunch)[:4] == period_times(plain)[:4]  # 앞쪽은 그대로
+    assert lunch_time(with_lunch) == ("12:50", "13:40")
+
+
+def test_lunch_hidden_when_after_last_period():
+    settings = Settings(periods=4, lunch=True, lunch_after=4)
+    assert not has_lunch(settings)
+    assert lunch_time(settings) is None
+    assert period_times(settings) == period_times(Settings(periods=4))
+
+
+@pytest.mark.parametrize(
+    ("changes", "field"),
+    [
+        ({"lunch_after": 0}, "lunch_after"),
+        ({"lunch_after": 7}, "lunch_after"),
+        ({"lunch_minutes": 0}, "lunch_minutes"),
+        ({"lunch_minutes": 181}, "lunch_minutes"),
+    ],
+)
+def test_invalid_lunch_settings(changes, field):
+    with pytest.raises(ValidationError) as info:
+        validate_settings(replace(Settings(), **changes))
+    assert field in info.value.errors
+
+
+def test_lunch_and_memo_survive_restart(tmp_path):
+    ctrl, _ = AppController.open(Storage(tmp_path))
+    settings = replace(
+        ctrl.workspace.data.settings, lunch=True, lunch_after=3, lunch_minutes=45, show_memo=True
+    )
+    assert ctrl.update_settings(settings).applied
+
+    again, _ = AppController.open(Storage(tmp_path))
+    restored = again.workspace.data.settings
+    assert (restored.lunch, restored.lunch_after, restored.lunch_minutes) == (True, 3, 45)
+    assert restored.show_memo

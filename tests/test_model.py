@@ -280,6 +280,10 @@ def test_dict_roundtrip_matches_spec_shape(ws):
         "class_minutes": 50,
         "break_minutes": 10,
         "background": "white",
+        "lunch": False,
+        "lunch_after": 4,
+        "lunch_minutes": 60,
+        "show_memo": False,
     }
     assert raw["timetables"][0]["cells"]["0-1"] == {
         "subject": "알고리즘", "room": "K301", "teacher": "", "memo": "", "color": "blue",

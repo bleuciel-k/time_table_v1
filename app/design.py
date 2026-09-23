@@ -2,10 +2,14 @@
 
 DESIGN.md는 마케팅 사이트용이라 히어로·섹션 리듬(96px)·가격표 하위 시스템은 앱에 쓰지 않는다.
 가져온 것은 토큰 층(색·타입·모서리·간격)과 버튼 한 쌍(먹색 기본 + 흰 테두리 보조)이다.
-테마는 라이트 고정, 폰트는 기기 기본(Haas는 유료, DESIGN.md의 대체 지침 따름).
+테마는 라이트 고정. 폰트는 Haas(유료) 대신 앱에 넣은 본고딕 CJK를 쓴다 (한·영·일 한 벌).
 """
 
 from __future__ import annotations
+
+# 앱에 넣은 본문 폰트 (한국어·영어·일본어). 화면(Flet)과 이미지(Pillow)가 같은 파일을 쓴다
+FONT_FAMILY = "Noto Sans CJK KR"
+FONT_FILE = "fonts/NotoSansCJKkr-Regular.otf"  # assets/ 기준 경로
 
 # ---------------------------------------------------------------- 색
 
