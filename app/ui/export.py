@@ -6,8 +6,10 @@ from typing import Callable
 
 import flet as ft
 
+from app import design as d
 from app.controller import ActionResult, AppController
 from app.exporter import FORMATS, SCALES, ExportOptions
+from app.ui import theme as t
 
 ShowResult = Callable[[ActionResult], None]
 PREVIEW_HEIGHT = 260
@@ -24,12 +26,18 @@ def open_export_sheet(
     page: ft.Page, controller: AppController, picker: ft.FilePicker, show_result: ShowResult
 ) -> None:
     options = ExportOptions()
-    sheet = ft.BottomSheet(ft.Container(), show_drag_handle=True, scrollable=True)
-    format_row = ft.Row(spacing=8)
-    scale_row = ft.Row(spacing=8)
+    format_row = ft.Row(spacing=d.SPACE_XS)
+    scale_row = ft.Row(spacing=d.SPACE_XS)
     initial_src, initial_name = _preview_src(controller, options)
-    preview = ft.Image(src=initial_src, fit=ft.BoxFit.CONTAIN, height=PREVIEW_HEIGHT)
-    hint = ft.Text(initial_name, size=12, color=ft.Colors.ON_SURFACE_VARIANT)
+    preview = ft.Container(
+        ft.Image(src=initial_src, fit=ft.BoxFit.CONTAIN, height=PREVIEW_HEIGHT),
+        padding=ft.Padding.all(d.SPACE_SM),
+        bgcolor=d.SURFACE_SOFT,
+        border=ft.Border.all(1, d.HAIRLINE),
+        border_radius=ft.BorderRadius.all(d.RADIUS_MD),
+        alignment=ft.Alignment.CENTER,
+    )
+    hint = t.text(initial_name, d.SMALL, color=d.MUTED)
 
     def close() -> None:
         sheet.open = False
@@ -63,52 +71,32 @@ def open_export_sheet(
         close()
         show_result(ActionResult(False, f"저장했어요: {path}"))
 
-    def chip(label: str, selected: bool, on_click: Callable[[], None]) -> ft.Container:
-        return ft.Container(
-            ft.Text(label, color=ft.Colors.ON_PRIMARY if selected else ft.Colors.ON_SURFACE),
-            padding=ft.Padding.symmetric(horizontal=14, vertical=8),
-            border_radius=ft.BorderRadius.all(20),
-            bgcolor=ft.Colors.PRIMARY if selected else None,
-            border=None if selected else ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
-            ink=True,
-            on_click=lambda e: on_click(),
-        )
-
     def sync() -> None:
         format_row.controls = [
-            chip(value.upper(), options.fmt == value, lambda v=value: choose_format(v))
+            t.chip(value.upper(), options.fmt == value, lambda v=value: choose_format(v))
             for value in FORMATS
         ]
         scale_row.controls = [
-            chip(f"{value}x", options.scale == value, lambda v=value: choose_scale(v))
+            t.chip(f"{value}x", options.scale == value, lambda v=value: choose_scale(v))
             for value in SCALES
         ]
-        preview.src, hint.value = _preview_src(controller, options)
+        preview.content.src, hint.value = _preview_src(controller, options)
         page.update()
 
-    sheet.content = ft.Container(
-        ft.Column(
-            [
-                ft.Text("이미지로 저장", size=18, weight=ft.FontWeight.BOLD),
-                preview,
-                hint,
-                ft.Text("형식", weight=ft.FontWeight.BOLD),
-                format_row,
-                ft.Text("배율", weight=ft.FontWeight.BOLD),
-                scale_row,
-                ft.Row(
-                    [
-                        ft.TextButton("취소", on_click=lambda e: close()),
-                        ft.FilledButton("저장", on_click=save),
-                    ],
-                    alignment=ft.MainAxisAlignment.END,
-                ),
-            ],
-            tight=True,
-            spacing=12,
-            scroll=ft.ScrollMode.AUTO,
-        ),
-        padding=ft.Padding.all(20),
+    sheet = t.sheet(
+        "이미지로 저장",
+        [
+            preview,
+            hint,
+            t.label("형식"),
+            format_row,
+            t.label("배율"),
+            scale_row,
+            t.actions_row(
+                t.secondary_button("취소", lambda e: close()),
+                t.primary_button("저장", save),
+            ),
+        ],
     )
     page.show_dialog(sheet)
     sync()

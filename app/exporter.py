@@ -11,6 +11,7 @@ from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont
 
+from app import design as d
 from app.model import DAY_LABELS, PERIOD_MIN, Cell, Settings, Timetable, grid_cells, period_times
 from app.palette import resolve_hex, text_color
 
@@ -33,10 +34,12 @@ FONT_CANDIDATES = (
     "/System/Library/Fonts/AppleSDGothicNeo.ttc",  # 최후 수단 (일본어 일부 누락)
 )
 
+# 색은 화면과 같은 토큰을 쓴다 (DESIGN.md, T11)
 BACKGROUND = (255, 255, 255, 0)  # PNG는 투명, JPG는 흰 배경으로 합성
-EMPTY_CELL_BORDER = (221, 221, 221, 255)
-LABEL_COLOR = (90, 90, 90, 255)
-HEADER_COLOR = (30, 30, 30, 255)
+EMPTY_CELL_FILL = d.rgba(d.SURFACE_SOFT)
+EMPTY_CELL_BORDER = d.rgba(d.HAIRLINE)
+LABEL_COLOR = d.rgba(d.MUTED)
+HEADER_COLOR = d.rgba(d.MUTED)
 
 
 @dataclass(frozen=True)
@@ -54,15 +57,15 @@ class Layout:
 
     @property
     def padding(self) -> int:
-        return 12 * self.scale
+        return d.SPACE_MD * self.scale
 
     @property
     def gap(self) -> int:
-        return 3 * self.scale
+        return d.SPACE_XXS * self.scale
 
     @property
     def radius(self) -> int:
-        return 6 * self.scale
+        return d.RADIUS_MD * self.scale
 
     @property
     def header_height(self) -> int:
@@ -139,7 +142,7 @@ def export_filename(name: str, when: date, fmt: str = "png") -> str:
 
 
 def _draw_header(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
-    font = load_font(15 * layout.scale)
+    font = load_font(d.CAPTION[0] * layout.scale)  # 요일 머리글 = 화면과 같은 캡션 크기
     for day in range(layout.settings.days):
         left, _, right, _ = layout.cell_box(day, 0)
         center = ((left + right) // 2, layout.padding + layout.header_height // 2)
@@ -173,15 +176,15 @@ def _draw_cell(
 ) -> None:
     box = layout.cell_box(day, period_index)
     if cell is None:
-        draw.rounded_rectangle(box, radius=layout.radius, outline=EMPTY_CELL_BORDER,
-                               width=max(1, layout.scale))
+        draw.rounded_rectangle(box, radius=layout.radius, fill=EMPTY_CELL_FILL,
+                               outline=EMPTY_CELL_BORDER, width=max(1, layout.scale))
         return
 
     left, top, right, bottom = box
     draw.rounded_rectangle(box, radius=layout.radius, fill=resolve_hex(cell.color))
     fill = text_color(cell.color)
-    inner_width = (right - left) - 8 * layout.scale
-    subject_font = load_font(13 * layout.scale)
+    inner_width = (right - left) - d.SPACE_XS * 2 * layout.scale
+    subject_font = load_font(13 * layout.scale)  # 화면 셀과 같은 크기
     room_font = load_font(11 * layout.scale)
 
     lines = wrap_text(cell.subject, subject_font, inner_width, MAX_SUBJECT_LINES)

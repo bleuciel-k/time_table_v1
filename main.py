@@ -4,12 +4,14 @@ import os
 
 import flet as ft
 
+from app import design as d
 from app.controller import AppController, SyncManager
 from app.sample import sample_data
 from app.storage import Storage
 from app.sync import Auth, CloudStore
 from app.ui.actions import Actions
 from app.ui.grid import build_grid
+from app.ui.theme import build_theme, snack_bar, style, text
 
 
 def build_sync(page: ft.Page, controller: AppController, render) -> SyncManager | None:
@@ -33,12 +35,20 @@ def build_sync(page: ft.Page, controller: AppController, render) -> SyncManager 
 
 def main(page: ft.Page) -> None:
     page.title = "시간표"
+    page.theme = build_theme()
+    page.theme_mode = ft.ThemeMode.LIGHT  # DESIGN.md는 흰 캔버스 기준의 라이트 전용 시스템
+    page.bgcolor = d.CANVAS
+    page.padding = ft.Padding.symmetric(horizontal=d.SPACE_MD)
     seed = sample_data if os.getenv("TIMETABLE_SAMPLE") == "1" else None
     controller, warnings = AppController.open(Storage(), seed=seed)
     workspace = controller.workspace
 
-    title = ft.Text(weight=ft.FontWeight.BOLD)
-    body = ft.Container(expand=True)
+    title = text("", d.TITLE_SM, color=d.INK)
+    body = ft.Container(
+        expand=True,
+        padding=ft.Padding.only(top=d.SPACE_SM),
+        border=ft.Border.only(top=ft.BorderSide(1, d.HAIRLINE)),  # 앱 바와 본문 사이 실선
+    )
 
     def render() -> None:
         title.value = workspace.active.name
@@ -54,12 +64,21 @@ def main(page: ft.Page) -> None:
     sync = build_sync(page, controller, render)
     actions = Actions(page, controller, render, picker=ft.FilePicker(), sync=sync)
     page.appbar = ft.AppBar(
+        bgcolor=d.CANVAS,
+        color=d.INK,
+        elevation=0,
+        elevation_on_scroll=0,
+        title_spacing=d.SPACE_XS,
         title=ft.Container(
-            ft.Row([title, ft.Icon(ft.Icons.ARROW_DROP_DOWN)], tight=True, spacing=0),
+            ft.Row(
+                [title, ft.Icon(ft.Icons.ARROW_DROP_DOWN, color=d.MUTED, size=20)],
+                tight=True,
+                spacing=0,
+            ),
             on_click=None if controller.read_only else (lambda e: actions.open_timetables()),
             ink=not controller.read_only,
-            padding=ft.Padding.symmetric(horizontal=8, vertical=4),
-            border_radius=ft.BorderRadius.all(8),
+            padding=ft.Padding.symmetric(horizontal=d.SPACE_XS, vertical=d.SPACE_XXS),
+            border_radius=ft.BorderRadius.all(d.RADIUS_SM),
         ),
         actions=None if controller.read_only else [actions.timetable_menu()],
     )
@@ -69,7 +88,7 @@ def main(page: ft.Page) -> None:
         sync.start()
         page.on_close = lambda e: sync.stop()
     if warnings:
-        page.show_dialog(ft.SnackBar(ft.Text("\n".join(warnings))))
+        page.show_dialog(snack_bar("\n".join(warnings)))
 
 
 if __name__ == "__main__":

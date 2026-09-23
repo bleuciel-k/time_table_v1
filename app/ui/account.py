@@ -5,8 +5,10 @@ from typing import Callable
 
 import flet as ft
 
+from app import design as d
 from app.controller import ActionResult, SyncManager, SyncStatus
 from app.sync import SyncError
+from app.ui import theme as t
 
 ShowResult = Callable[[ActionResult], None]
 
@@ -22,15 +24,10 @@ def open_account(page: ft.Page, manager: SyncManager | None, show_result: ShowRe
 
 
 def _open_login(page: ft.Page, manager: SyncManager, show_result: ShowResult) -> None:
-    email = ft.TextField(label="이메일", autofocus=True, keyboard_type=ft.KeyboardType.EMAIL)
-    password = ft.TextField(label="비밀번호", password=True, can_reveal_password=True)
-    error = ft.Text(color=ft.Colors.ERROR, visible=False)
-    spinner = ft.ProgressRing(width=16, height=16, visible=False)
-    dialog = ft.AlertDialog(
-        modal=True,
-        title="로그인",
-        content=ft.Column([email, password, error], tight=True, spacing=12, width=320),
-    )
+    email = t.text_field("이메일", autofocus=True, keyboard_type=ft.KeyboardType.EMAIL)
+    password = t.text_field("비밀번호", password=True, can_reveal_password=True)
+    error = t.text("", d.BODY_MD, color=d.DANGER, visible=False)
+    spinner = ft.ProgressRing(width=16, height=16, stroke_width=2, color=d.INK, visible=False)
 
     def busy(value: bool) -> None:
         spinner.visible = value
@@ -39,7 +36,7 @@ def _open_login(page: ft.Page, manager: SyncManager, show_result: ShowResult) ->
             button.disabled = value
         page.update()
 
-    def cancel(e: ft.Event[ft.TextButton]) -> None:
+    def cancel(e: ft.Event[ft.OutlinedButton]) -> None:
         dialog.open = False
         page.update()
 
@@ -60,17 +57,16 @@ def _open_login(page: ft.Page, manager: SyncManager, show_result: ShowResult) ->
 
         page.run_thread(work)
 
-    dialog.actions = [
-        spinner,
-        ft.TextButton("취소", on_click=cancel),
-        ft.FilledButton("로그인", on_click=submit),
-    ]
+    dialog = t.dialog(
+        "로그인",
+        ft.Column([email, password, error], tight=True, spacing=d.SPACE_SM, width=320),
+        [spinner, t.secondary_button("취소", cancel), t.primary_button("로그인", submit)],
+    )
     page.show_dialog(dialog)
 
 
 def _open_account_sheet(page: ft.Page, manager: SyncManager, show_result: ShowResult) -> None:
     status = manager.status
-    sheet = ft.BottomSheet(ft.Container(), show_drag_handle=True)
 
     def close() -> None:
         sheet.open = False
@@ -86,26 +82,19 @@ def _open_account_sheet(page: ft.Page, manager: SyncManager, show_result: ShowRe
         manager.sign_out()
         show_result(ActionResult(False, "로그아웃했어요. 이 기기의 시간표는 그대로 있어요."))
 
-    sheet.content = ft.Container(
-        ft.Column(
-            [
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.ACCOUNT_CIRCLE),
-                    title=status.email,
-                    subtitle=sync_summary(status, manager.controller.dirty),
-                ),
-                ft.Divider(height=1),
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.SYNC), title="지금 동기화", on_click=lambda e: sync_now()
-                ),
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.LOGOUT), title="로그아웃", on_click=lambda e: sign_out()
-                ),
-            ],
-            tight=True,
-            spacing=0,
-        ),
-        padding=ft.Padding.only(bottom=16),
+    sheet = t.menu_sheet(
+        "계정",
+        [
+            t.menu_item(
+                ft.Icons.ACCOUNT_CIRCLE,
+                status.email,
+                None,
+                subtitle=sync_summary(status, manager.controller.dirty),
+            ),
+            t.divider(),
+            t.menu_item(ft.Icons.SYNC, "지금 동기화", lambda e: sync_now()),
+            t.menu_item(ft.Icons.LOGOUT, "로그아웃", lambda e: sign_out()),
+        ],
     )
     page.show_dialog(sheet)
 

@@ -7,12 +7,15 @@ from typing import Callable
 
 import flet as ft
 
+from app import design as d
 from app.controller import ActionResult, AppController, SyncManager
 from app.model import DAY_LABELS, UNDO_WINDOW, parse_cell_key
 from app.ui.account import open_account
 from app.ui.editor import open_cell_editor
 from app.ui.export import open_export_sheet
 from app.ui.settings import open_settings
+from app.ui.theme import danger_button, menu_item, menu_sheet, secondary_button, snack_bar
+from app.ui.theme import dialog as theme_dialog
 from app.ui.timetables import open_timetable_list
 
 UNDO_SNACKBAR_MS = int(UNDO_WINDOW.total_seconds() * 1000)
@@ -42,8 +45,8 @@ class Actions:
         if not result.message:
             return
         self.page.show_dialog(
-            ft.SnackBar(
-                ft.Text(result.message),
+            snack_bar(
+                result.message,
                 action="되돌리기" if result.undoable else None,
                 on_action=self._undo if result.undoable else None,
                 duration=UNDO_SNACKBAR_MS if result.undoable else NOTICE_SNACKBAR_MS,
@@ -61,14 +64,16 @@ class Actions:
     def open_cell_menu(self, key: str) -> None:
         cell = self.controller.workspace.get_cell(key)
         day, period = parse_cell_key(key)
-        sheet = ft.BottomSheet(ft.Container(), show_drag_handle=True)
+        sheet: ft.BottomSheet
 
-        def item(icon: ft.IconData, label: str, handler: Callable[[], None]) -> ft.ListTile:
+        def item(
+            icon: ft.IconData, label: str, handler: Callable[[], None], color: str = d.INK
+        ) -> ft.ListTile:
             def click(e: ft.Event[ft.ListTile]) -> None:
                 self._close(sheet)
                 handler()
 
-            return ft.ListTile(leading=ft.Icon(icon), title=label, on_click=click)
+            return menu_item(icon, label, click, color=color)
 
         items = [item(ft.Icons.EDIT, "편집", lambda: self.edit_cell(key))]
         if cell is not None:
@@ -79,24 +84,16 @@ class Actions:
             items.append(item(ft.Icons.CONTENT_PASTE, "붙여넣기", lambda: self.paste(key)))
         if cell is not None:
             items.append(
-                item(ft.Icons.DELETE, "삭제", lambda: self.show_result(self.controller.clear_cell(key)))
+                item(
+                    ft.Icons.DELETE,
+                    "삭제",
+                    lambda: self.show_result(self.controller.clear_cell(key)),
+                    color=d.DANGER,
+                )
             )
 
         heading = f"{DAY_LABELS[day]}요일 {period}교시 · {cell.subject if cell else '빈 칸'}"
-        sheet.content = ft.Container(
-            ft.Column(
-                [
-                    ft.Container(
-                        ft.Text(heading, size=16, weight=ft.FontWeight.BOLD),
-                        padding=ft.Padding.symmetric(horizontal=16, vertical=8),
-                    ),
-                    *items,
-                ],
-                tight=True,
-                spacing=0,
-            ),
-            padding=ft.Padding.only(bottom=16),
-        )
+        sheet = menu_sheet(heading, items)
         self.page.show_dialog(sheet)
 
     def paste(self, key: str) -> None:
@@ -131,7 +128,11 @@ class Actions:
         c = self.controller
         return ft.PopupMenuButton(
             icon=ft.Icons.MORE_VERT,
+            icon_color=d.INK,
             tooltip="시간표 메뉴",
+            bgcolor=d.CANVAS,
+            elevation=2,
+            shape=ft.RoundedRectangleBorder(radius=d.RADIUS_MD),
             items=[
                 ft.PopupMenuItem(
                     "이미지로 저장", icon=ft.Icons.IMAGE, on_click=lambda e: self.open_export()
@@ -159,17 +160,21 @@ class Actions:
 
     # ---- 공통
 
-    def confirm(self, title: str, body: str, confirm_label: str, on_confirm: Callable[[], None]) -> None:
-        dialog = ft.AlertDialog(modal=True, title=title, content=ft.Text(body))
-
-        def cancel(e: ft.Event[ft.TextButton]) -> None:
+    def confirm(
+        self, title: str, body: str, confirm_label: str, on_confirm: Callable[[], None]
+    ) -> None:
+        def cancel(e: ft.Event[ft.OutlinedButton]) -> None:
             self._close(dialog)
 
         def accept(e: ft.Event[ft.TextButton]) -> None:
             self._close(dialog)
             on_confirm()
 
-        dialog.actions = [ft.TextButton("취소", on_click=cancel), ft.TextButton(confirm_label, on_click=accept)]
+        dialog = theme_dialog(
+            title,
+            ft.Text(body),
+            [secondary_button("취소", cancel), danger_button(confirm_label, accept)],
+        )
         self.page.show_dialog(dialog)
 
     def _close(self, dialog: ft.Control) -> None:
