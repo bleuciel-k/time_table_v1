@@ -312,3 +312,50 @@ def test_seed_only_on_first_run(tmp_path):
 def test_first_run_without_seed_is_empty(ctrl):
     assert ctrl.workspace.active.cells == {}
     assert ctrl.workspace.active.name == "새 시간표"
+
+
+# ---- 배경색 (F9) + 시간표별 삭제 (F4c)
+
+
+def test_background_is_saved_and_restored(ctrl, tmp_path):
+    from dataclasses import replace
+
+    settings = replace(ctrl.workspace.data.settings, background="ivory")
+    assert ctrl.update_settings(settings).applied
+    assert reopen(tmp_path).workspace.data.settings.background == "ivory"
+
+
+def test_unknown_background_is_rejected(ctrl):
+    from dataclasses import replace
+
+    result = ctrl.update_settings(replace(ctrl.workspace.data.settings, background="무지개"))
+    assert not result.applied
+    assert "배경색" in result.message
+    assert ctrl.workspace.data.settings.background == "white"
+
+
+def test_delete_timetable_by_id_keeps_active(ctrl):
+    other = ctrl.workspace.add_timetable("버릴 것")
+    active_id = ctrl.workspace.active.id
+    result = ctrl.delete_timetable(other.id)
+    assert result.applied and result.undoable
+    assert "버릴 것" in result.message
+    assert [t.id for t in ctrl.workspace.data.visible()] == [active_id]
+
+
+def test_delete_timetable_by_id_switches_when_active_removed(ctrl):
+    other = ctrl.workspace.add_timetable("남을 것")
+    assert ctrl.delete_timetable(ctrl.workspace.active.id).applied
+    assert ctrl.workspace.active.id == other.id
+
+
+def test_delete_timetable_unknown_id(ctrl):
+    result = ctrl.delete_timetable("tt_없음")
+    assert not result.applied and "시간표 없음" in result.message
+
+
+def test_delete_last_timetable_creates_empty_one(ctrl):
+    assert ctrl.delete_timetable().applied
+    visible = ctrl.workspace.data.visible()
+    assert len(visible) == 1 and visible[0].cells == {}
+    assert ctrl.undo().applied  # 되돌리면 원래 시간표가 돌아온다

@@ -301,6 +301,7 @@ def test_dict_roundtrip_matches_spec_shape(ws):
         "start_time": "09:00",
         "class_minutes": 50,
         "break_minutes": 10,
+        "background": "white",
     }
     assert raw["timetables"][0]["cells"]["0-1"] == {
         "subject": "알고리즘", "room": "K301", "teacher": "", "memo": "", "color": "blue",

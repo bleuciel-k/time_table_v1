@@ -7,6 +7,7 @@ import flet as ft
 from app import design as d
 from app.controller import AppController, SyncManager
 from app.sample import sample_data
+from app.palette import background_hex
 from app.storage import Storage
 from app.sync import Auth, CloudStore
 from app.ui.actions import Actions
@@ -37,7 +38,7 @@ def main(page: ft.Page) -> None:
     page.title = "시간표"
     page.theme = build_theme()
     page.theme_mode = ft.ThemeMode.LIGHT  # DESIGN.md는 흰 캔버스 기준의 라이트 전용 시스템
-    page.bgcolor = d.CANVAS
+    page.bgcolor = d.CANVAS  # 실제 배경색은 render()에서 설정값에 맞춰 바꾼다 (F9)
     page.padding = ft.Padding.symmetric(horizontal=d.SPACE_MD)
     seed = sample_data if os.getenv("TIMETABLE_SAMPLE") == "1" else None
     controller, warnings = AppController.open(Storage(), seed=seed)
@@ -51,11 +52,13 @@ def main(page: ft.Page) -> None:
     )
 
     def render() -> None:
+        settings = workspace.data.settings
         title.value = workspace.active.name
+        page.bgcolor = background_hex(settings.background)
         editable = not controller.read_only
         body.content = build_grid(
             workspace.active,
-            workspace.data.settings,
+            settings,
             on_cell_click=actions.edit_cell if editable else None,
             on_cell_long_press=actions.open_cell_menu if editable else None,
         )

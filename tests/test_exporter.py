@@ -172,3 +172,35 @@ def test_export_filename():
     assert export_filename("   ", when) == "timetable_timetable_20260917.png"
     with pytest.raises(ValueError):
         export_filename("이름", when, "gif")
+
+
+# ---- 배경색 (F9, spec 3.4)
+
+
+def background_pixel(data: bytes) -> tuple:
+    return open_image(data).convert("RGBA").getpixel((1, 1))
+
+
+def test_default_background_keeps_transparent_png(workspace):
+    settings = workspace.data.settings
+    assert background_pixel(render(workspace.active, settings))[3] == 0
+
+
+def test_chosen_background_fills_png(workspace):
+    from dataclasses import replace
+
+    from app.palette import BACKGROUNDS
+
+    settings = replace(workspace.data.settings, background="ivory")
+    pixel = background_pixel(render(workspace.active, settings))
+    assert pixel[3] == 255
+    assert pixel[:3] == tuple(int(BACKGROUNDS["ivory"][i : i + 2], 16) for i in (1, 3, 5))
+
+
+def test_chosen_background_applies_to_jpg(workspace):
+    from dataclasses import replace
+
+    settings = replace(workspace.data.settings, background="mint")
+    data = render(workspace.active, settings, ExportOptions(fmt="jpg"))
+    r, g, b = open_image(data).convert("RGB").getpixel((1, 1))
+    assert (r, g, b) != (255, 255, 255) and min(r, g, b) > 220  # 연한 민트

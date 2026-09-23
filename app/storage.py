@@ -22,7 +22,7 @@ from app.model import (
     utc_now,
     validate_settings,
 )
-from app.palette import DEFAULT_COLOR, PALETTE
+from app.palette import BACKGROUNDS, DEFAULT_BACKGROUND, DEFAULT_COLOR, PALETTE
 
 DATA_FILE = "data.json"
 BACKUP_FILE = "data.json.bak"
@@ -106,6 +106,7 @@ def _clean(raw: dict[str, Any]) -> dict[str, Any]:
         break_minutes=_expect_int(
             settings_raw.get("break_minutes", defaults.break_minutes), "settings.break_minutes"
         ),
+        background=_background(settings_raw.get("background", defaults.background)),
     )
     try:
         validate_settings(settings)
@@ -153,6 +154,11 @@ def _clean(raw: dict[str, Any]) -> dict[str, Any]:
         ),
         "timetables": timetables,
     }
+
+
+def _background(value: Any) -> str:
+    """알 수 없는 배경색은 셀 색상과 같은 규칙으로 기본값 대체 (spec 2.7)."""
+    return value if isinstance(value, str) and value in BACKGROUNDS else DEFAULT_BACKGROUND
 
 
 def _expect(value: Any, typ: type, where: str) -> Any:

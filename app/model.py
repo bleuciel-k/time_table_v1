@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
-from app.palette import DEFAULT_COLOR, PALETTE
+from app.palette import BACKGROUNDS, DEFAULT_BACKGROUND, DEFAULT_COLOR, PALETTE
 
 SCHEMA_VERSION = 1
 SUBJECT_MAX = 30
@@ -98,6 +98,7 @@ class Settings:
     start_time: str = "09:00"  # 1교시 시작 시각
     class_minutes: int = 50
     break_minutes: int = 10
+    background: str = DEFAULT_BACKGROUND  # 화면·내보내기 배경색 (F9)
 
 
 def settings_from_dict(raw: dict[str, Any]) -> Settings:
@@ -253,6 +254,8 @@ def validate_settings(settings: Settings) -> None:
         errors["class_minutes"] = "수업 시간은 1~180분이어야 합니다."
     if not 0 <= settings.break_minutes <= 120:
         errors["break_minutes"] = "쉬는 시간은 0~120분이어야 합니다."
+    if settings.background not in BACKGROUNDS:
+        errors["background"] = "알 수 없는 배경색입니다."
     if errors:
         raise ValidationError(errors)
 

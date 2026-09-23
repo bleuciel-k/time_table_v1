@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from app import design as d
 from app.model import DAY_LABELS, PERIOD_MIN, Cell, Settings, Timetable, grid_cells, period_times
-from app.palette import resolve_hex, text_color
+from app.palette import DEFAULT_BACKGROUND, background_hex, resolve_hex, text_color
 
 FORMATS = ("png", "jpg")
 SCALES = (1, 2)
@@ -35,7 +35,7 @@ FONT_CANDIDATES = (
 )
 
 # 색은 화면과 같은 토큰을 쓴다 (DESIGN.md, T11)
-BACKGROUND = (255, 255, 255, 0)  # PNG는 투명, JPG는 흰 배경으로 합성
+TRANSPARENT = (255, 255, 255, 0)  # 배경색이 기본(흰색)일 때만 PNG를 투명하게 둔다
 EMPTY_CELL_FILL = d.rgba(d.SURFACE_SOFT)
 EMPTY_CELL_BORDER = d.rgba(d.HAIRLINE)
 LABEL_COLOR = d.rgba(d.MUTED)
@@ -120,13 +120,20 @@ def render(
         raise ValueError(f"지원하지 않는 배율: {options.scale}")
 
     layout = Layout(settings, options.scale)
-    image = Image.new("RGBA", (layout.width, layout.height), BACKGROUND)
+    # 배경색이 기본이면 지금까지처럼 투명 PNG, 고른 색이 있으면 그 색으로 채운다 (F9, spec 3.4)
+    plain = settings.background == DEFAULT_BACKGROUND
+    image = Image.new(
+        "RGBA",
+        (layout.width, layout.height),
+        TRANSPARENT if plain else d.rgba(background_hex(settings.background)),
+    )
     draw = ImageDraw.Draw(image)
+    empty_fill = EMPTY_CELL_FILL if plain else d.rgba(d.CANVAS)
     _draw_header(draw, layout)
     _draw_period_labels(draw, layout)
     for period_index, row in enumerate(grid_cells(timetable, settings)):
         for day, cell in enumerate(row):
-            _draw_cell(draw, layout, day, period_index, cell)
+            _draw_cell(draw, layout, day, period_index, cell, empty_fill)
     return _encode(image, options)
 
 
@@ -172,11 +179,16 @@ def _draw_period_labels(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
 
 
 def _draw_cell(
-    draw: ImageDraw.ImageDraw, layout: Layout, day: int, period_index: int, cell: Cell | None
+    draw: ImageDraw.ImageDraw,
+    layout: Layout,
+    day: int,
+    period_index: int,
+    cell: Cell | None,
+    empty_fill: tuple[int, int, int, int] = EMPTY_CELL_FILL,
 ) -> None:
     box = layout.cell_box(day, period_index)
     if cell is None:
-        draw.rounded_rectangle(box, radius=layout.radius, fill=EMPTY_CELL_FILL,
+        draw.rounded_rectangle(box, radius=layout.radius, fill=empty_fill,
                                outline=EMPTY_CELL_BORDER, width=max(1, layout.scale))
         return
 

@@ -19,9 +19,38 @@ PALETTE: dict[str, str] = {
     "gray": "#BDBDBD",
 }
 
+# 배경색 (F9). 16색 셀과 먹색 글자가 모두 잘 보이도록 아주 연한 색만 둔다 (DESIGN.md)
+BACKGROUNDS: dict[str, str] = {
+    "white": "#FFFFFF",
+    "ivory": "#FBF6EA",
+    "sand": "#F7F1E8",
+    "blush": "#FCF0F1",
+    "mint": "#EDF7F1",
+    "sky": "#EEF3FB",
+    "lavender": "#F3F0FA",
+    "gray": "#F4F5F7",
+}
+
+BACKGROUND_LABELS: dict[str, str] = {
+    "white": "흰색",
+    "ivory": "아이보리",
+    "sand": "모래",
+    "blush": "연분홍",
+    "mint": "민트",
+    "sky": "하늘",
+    "lavender": "라벤더",
+    "gray": "회색",
+}
+
+DEFAULT_BACKGROUND = "white"
 DEFAULT_COLOR = "blue"
 BLACK = "#000000"
 WHITE = "#FFFFFF"
+
+
+def background_hex(key: str) -> str:
+    """배경색 key → hex. 모르는 key는 기본값(흰색)으로 본다 (spec 2.7)."""
+    return BACKGROUNDS.get(key, BACKGROUNDS[DEFAULT_BACKGROUND])
 
 
 def resolve_hex(color: str) -> str:

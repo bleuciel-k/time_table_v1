@@ -15,6 +15,7 @@ ShowResult = Callable[[ActionResult], None]
 def open_timetable_list(
     page: ft.Page, controller: AppController, show_result: ShowResult, refresh: Callable[[], None]
 ) -> None:
+    only_one = len(controller.workspace.data.visible()) == 1
     def close() -> None:
         sheet.open = False
         page.update()
@@ -38,6 +39,18 @@ def open_timetable_list(
         close()
         ask_name(page, "시간표 추가", "", "추가", controller.add_timetable, show_result)
 
+    def delete(timetable: Timetable) -> None:
+        close()
+        body = (
+            f"‘{timetable.name}’을(를) 지웁니다. 5초 안에 되돌릴 수 있어요."
+            if not only_one
+            else f"‘{timetable.name}’을(를) 지우면 빈 시간표가 새로 만들어져요. "
+            "5초 안에 되돌릴 수 있어요."
+        )
+        confirm_delete(
+            page, timetable.name, body, lambda: show_result(controller.delete_timetable(timetable.id))
+        )
+
     def row(timetable: Timetable) -> ft.ListTile:
         active = timetable.id == controller.workspace.active.id
         return t.menu_item(
@@ -46,12 +59,25 @@ def open_timetable_list(
             lambda e, tt=timetable: switch(tt),
             subtitle=f"{len(timetable.cells)}칸",
             color=d.INK if active else d.MUTED,
-            trailing=ft.IconButton(
-                ft.Icons.EDIT,
-                tooltip="이름 변경",
-                icon_color=d.MUTED,
-                icon_size=20,
-                on_click=lambda e, tt=timetable: rename(tt),
+            trailing=ft.Row(
+                [
+                    ft.IconButton(
+                        ft.Icons.EDIT,
+                        tooltip="이름 변경",
+                        icon_color=d.MUTED,
+                        icon_size=20,
+                        on_click=lambda e, tt=timetable: rename(tt),
+                    ),
+                    ft.IconButton(
+                        ft.Icons.DELETE_OUTLINE,
+                        tooltip="삭제",
+                        icon_color=d.DANGER,
+                        icon_size=20,
+                        on_click=lambda e, tt=timetable: delete(tt),
+                    ),
+                ],
+                tight=True,
+                spacing=0,
             ),
         )
 
@@ -93,5 +119,27 @@ def ask_name(
         title,
         field,
         [t.secondary_button("취소", cancel), t.primary_button(confirm_label, submit)],
+    )
+    page.show_dialog(dialog)
+
+
+def confirm_delete(
+    page: ft.Page, name: str, body: str, on_confirm: Callable[[], None]
+) -> None:
+    """시간표 삭제 확인 (F4c). 되돌리기가 있어도 시간표 단위는 한 번 묻는다."""
+
+    def cancel(e: ft.Event[ft.OutlinedButton]) -> None:
+        dialog.open = False
+        page.update()
+
+    def accept(e: ft.Event[ft.TextButton]) -> None:
+        dialog.open = False
+        page.update()
+        on_confirm()
+
+    dialog = t.dialog(
+        f"‘{name}’을(를) 삭제할까요?",
+        ft.Text(body),
+        [t.secondary_button("취소", cancel), t.danger_button("삭제", accept)],
     )
     page.show_dialog(dialog)

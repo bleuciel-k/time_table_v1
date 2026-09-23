@@ -188,9 +188,15 @@ class AppController:
     def clear_timetable(self) -> ActionResult:
         return self._mutate(self.workspace.clear_timetable, "시간표를 비웠어요.", "이미 비어 있습니다.")
 
-    def delete_timetable(self) -> ActionResult:
-        name = self.workspace.active.name
-        return self._mutate(self.workspace.delete_timetable, f"삭제했어요: {name}")
+    def delete_timetable(self, timetable_id: str | None = None) -> ActionResult:
+        """id를 주지 않으면 활성 시간표를 지운다 (F4c). 되돌리기는 5초간 제공된다."""
+        try:
+            name = self.workspace.timetable(timetable_id).name
+        except ModelError as ex:
+            return ActionResult(False, str(ex))
+        return self._mutate(
+            lambda: self.workspace.delete_timetable(timetable_id), f"삭제했어요: {name}"
+        )
 
     def undo(self) -> ActionResult:
         return self._mutate(self.workspace.undo, "되돌렸어요.", UNDO_EXPIRED_MESSAGE)
