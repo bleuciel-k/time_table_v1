@@ -26,6 +26,15 @@ HEADER_HEIGHT = 32
 CELL_HEIGHT = 84
 LUNCH_HEIGHT = 30
 MEMO_MAX_LINES = 2
+
+# 그리드 글자 크기 (크기, 굵기). 칸이 좁아 앱의 기본 크기보다 한 단계씩 작게 쓴다
+HEADER_TEXT = (13, 500)  # 요일
+PERIOD_TEXT = (13, 400)  # 교시 번호
+TIME_TEXT = (8, 400)  # 교시 시각
+SUBJECT_TEXT = (12, 500)
+ROOM_TEXT = (10, 400)
+MEMO_TEXT = (8, 400)
+LUNCH_TEXT = (11, 400)
 GAP = d.SPACE_XXS
 RADIUS = d.RADIUS_MD
 
@@ -65,7 +74,7 @@ def _lunch_row(settings: Settings, label_width: float) -> ft.Row:
         [
             ft.Container(width=label_width),
             ft.Container(
-                text(caption, d.SMALL, color=d.MUTED, text_align=ft.TextAlign.CENTER),
+                text(caption, LUNCH_TEXT, color=d.MUTED, text_align=ft.TextAlign.CENTER),
                 expand=1,
                 height=LUNCH_HEIGHT,
                 border=ft.Border.all(1, d.HAIRLINE),
@@ -80,7 +89,7 @@ def _lunch_row(settings: Settings, label_width: float) -> ft.Row:
 def _header(days: int, label_width: float) -> ft.Row:
     labels = [
         ft.Container(
-            text(DAY_LABELS[day], d.CAPTION, color=d.MUTED, text_align=ft.TextAlign.CENTER),
+            text(DAY_LABELS[day], HEADER_TEXT, color=d.MUTED, text_align=ft.TextAlign.CENTER),
             expand=1,
             height=HEADER_HEIGHT,
             alignment=ft.Alignment.CENTER,
@@ -91,10 +100,10 @@ def _header(days: int, label_width: float) -> ft.Row:
 
 
 def _period_label(period: int, times: tuple[str, str] | None, width: float) -> ft.Container:
-    lines: list[ft.Control] = [text(str(period), d.CAPTION, color=d.MUTED)]
+    lines: list[ft.Control] = [text(str(period), PERIOD_TEXT, color=d.MUTED)]
     if times:
         lines += [
-            text(value, (9, 400), color=d.MUTED, text_align=ft.TextAlign.CENTER)
+            text(value, TIME_TEXT, color=d.MUTED, text_align=ft.TextAlign.CENTER)
             for value in times
         ]
     return ft.Container(
@@ -135,7 +144,7 @@ def _cell(
     lines: list[ft.Control] = [
         text(
             cell.subject,
-            (13, 500),  # 셀 안에서도 굵게가 아니라 중간 굵기 (DESIGN.md)
+            SUBJECT_TEXT,  # 셀 안에서도 굵게가 아니라 중간 굵기 (DESIGN.md)
             color=fg,
             max_lines=3,
             overflow=ft.TextOverflow.ELLIPSIS,
@@ -146,7 +155,7 @@ def _cell(
         lines.append(
             text(
                 cell.room,
-                (11, 400),
+                ROOM_TEXT,
                 color=fg,
                 max_lines=1,
                 overflow=ft.TextOverflow.ELLIPSIS,
@@ -157,7 +166,7 @@ def _cell(
         lines.append(
             text(
                 cell.memo,
-                (9, 400),  # 메모는 가장 작은 글씨로 최대 2줄 (F9)
+                MEMO_TEXT,  # 메모는 가장 작은 글씨로 최대 2줄 (F1)
                 color=fg,
                 max_lines=MEMO_MAX_LINES,
                 overflow=ft.TextOverflow.ELLIPSIS,

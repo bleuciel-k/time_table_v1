@@ -31,6 +31,16 @@ SCALES = (1, 2)
 JPEG_QUALITY = 92
 MAX_SUBJECT_LINES = 3
 MAX_MEMO_LINES = 2
+
+# 글자 크기 (1x 기준) — 화면 그리드와 같은 값
+HEADER_SIZE = 13
+PERIOD_SIZE = 13
+TIME_SIZE = 8
+SUBJECT_SIZE = 12
+ROOM_SIZE = 10
+MEMO_SIZE = 8
+LUNCH_SIZE = 11
+LINE_HEIGHT = 14
 ELLIPSIS = "…"
 
 # 기기에 있는 CJK 폰트를 먼저 쓰고(APK 크기 절약), 없으면 번들 폰트를 쓴다.
@@ -178,7 +188,7 @@ def export_filename(name: str, when: date, fmt: str = "png") -> str:
 
 
 def _draw_header(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
-    font = load_font(d.CAPTION[0] * layout.scale, medium=True)  # 요일 머리글 = 화면과 같은 캡션
+    font = load_font(HEADER_SIZE * layout.scale, medium=True)  # 요일 머리글
     for day in range(layout.settings.days):
         left, _, right, _ = layout.cell_box(day, 0)
         center = ((left + right) // 2, layout.padding + layout.header_height // 2)
@@ -187,8 +197,8 @@ def _draw_header(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
 
 def _draw_period_labels(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
     settings = layout.settings
-    number_font = load_font(13 * layout.scale, medium=True)
-    time_font = load_font(9 * layout.scale)
+    number_font = load_font(PERIOD_SIZE * layout.scale)
+    time_font = load_font(TIME_SIZE * layout.scale)
     times = period_times(settings) if settings.show_times else None
     center_x = layout.padding + layout.label_width // 2
     for index in range(settings.periods):
@@ -199,7 +209,7 @@ def _draw_period_labels(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
                       fill=LABEL_COLOR, anchor="mm")
             continue
         start, end = times[index]
-        line_height = 12 * layout.scale
+        line_height = 11 * layout.scale
         draw.text((center_x, center_y - line_height), str(PERIOD_MIN + index),
                   font=number_font, fill=LABEL_COLOR, anchor="mm")
         draw.text((center_x, center_y), start, font=time_font, fill=LABEL_COLOR, anchor="mm")
@@ -219,7 +229,7 @@ def _draw_lunch(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
     caption = f"점심시간 · {times[0]}–{times[1]}" if settings.show_times else "점심시간"
     left, top, right, bottom = box
     draw.text((((left + right) // 2), (top + bottom) // 2), caption,
-              font=load_font(11 * layout.scale), fill=LABEL_COLOR, anchor="mm")
+              font=load_font(LUNCH_SIZE * layout.scale), fill=LABEL_COLOR, anchor="mm")
 
 
 def _draw_cell(
@@ -240,10 +250,10 @@ def _draw_cell(
     draw.rounded_rectangle(box, radius=layout.radius, fill=resolve_hex(cell.color))
     fill = text_color(cell.color)
     inner_width = (right - left) - d.SPACE_XS * 2 * layout.scale
-    subject_font = load_font(13 * layout.scale, medium=True)  # 화면 셀과 같은 크기·굵기
-    room_font = load_font(11 * layout.scale)
+    subject_font = load_font(SUBJECT_SIZE * layout.scale, medium=True)  # 화면 셀과 같은 크기·굵기
+    room_font = load_font(ROOM_SIZE * layout.scale)
 
-    memo_font = load_font(9 * layout.scale)
+    memo_font = load_font(MEMO_SIZE * layout.scale)
 
     # (글자, 폰트) 순서로 쌓는다: 과목명 최대 3줄 → 강의실 1줄 → 메모 최대 2줄 (F9)
     rows: list[tuple[str, ImageFont.FreeTypeFont]] = [
@@ -256,7 +266,7 @@ def _draw_cell(
             (line, memo_font)
             for line in wrap_text(cell.memo, memo_font, inner_width, MAX_MEMO_LINES)
         ]
-    line_height = 15 * layout.scale
+    line_height = LINE_HEIGHT * layout.scale
     center_x = (left + right) // 2
     start_y = (top + bottom) // 2 - (len(rows) - 1) * line_height // 2
     for index, (line, font) in enumerate(rows):

@@ -215,6 +215,8 @@ timetable/
 - 폰트는 앱에 넣은 **Noto Sans CJK KR** Regular + Medium(`assets/fonts/`, 각 16MB) — 한국어·영어·일본어를 한 벌로 덮는다. 화면(Flet `page.fonts`)과 내보낸 이미지(Pillow)가 같은 파일을 쓰며, 굵기 500 이상은 Medium을 쓴다(가짜 굵게 방지). Flet은 한 가족에 파일 하나만 등록할 수 있어 굵기별로 가족 이름을 나눈다
 - 기본 버튼은 먹색(`#181D26`) + 12px 모서리, 보조 버튼은 흰 배경 + 1px 실선. 큰 글자를 굵게 하지 않고 크기·색으로 강조한다
 - 시간표 16색(2.5)은 데이터라서 그대로 두고, 주변 UI만 토큰을 따른다
+- 그리드 안 글자는 칸이 좁아 앱 기본 크기보다 한 단계 작게 쓴다: 요일 13 / 교시 13 · 시각 8 / 과목명 12 / 강의실 10 / 메모 8 (화면과 이미지 동일)
+- 앱 아이콘: `assets/icon.png` (1024×1024, 원본 `assets/Timetable_icon.png`). `flet build`가 기기별 크기를 자동 생성
 
 ### 3.6 리스크
 
@@ -263,7 +265,7 @@ bash scripts/run_android.sh   # 연결된 에뮬레이터/기기(arm64)에 빌�
 ```
 
 - APK에 넣지 않을 파일(`.venv`, `.flet`, `tests` 등)은 `pyproject.toml`의 `[tool.flet.app] exclude`에 둔다
-- APK 크기 실측(N1): arm64 전용 **82.4MB** (2026-09-24, 폰트 Regular+Medium 32MB 포함). 폰트 이전 58.9MB → Regular만 69.2MB → +Medium 82.4MB. 목표 100MB 이내
+- APK 크기 실측(N1): arm64 전용 **84.8MB** (2026-09-24, 폰트 Regular+Medium 32MB + 아이콘 포함). 폰트 이전 58.9MB → Regular 69.2MB → +Medium 82.4MB → +아이콘 84.8MB. 목표 100MB 이내
 
 ---
 
@@ -300,4 +302,5 @@ bash scripts/run_android.sh   # 연결된 에뮬레이터/기기(arm64)에 빌�
 | F1 메모 표시 | 셀마다 켜고 끄기, 켠 셀만 작은 글씨 2줄 | ☐ |
 | 폰트 | 한국어·영어·일본어가 화면과 이미지에서 모두 정상 표시 | ☐ |
 | N1 APK 크기 | 빌드 결과 확인 | ☐ |
+| 앱 아이콘 | 홈 화면과 앱 목록에서 아이콘·이름 확인 | ☐ |
 | N4 오프라인 | 비행기 모드에서 F1~F6 | ☐ |
