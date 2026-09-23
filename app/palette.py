@@ -1,22 +1,23 @@
 """16색 프리셋과 글자색 계산 (spec 2.5). Flet 비의존 (P5)."""
 
+# 부드러운 파스텔 16색. 모두 밝아서 글자는 먹색으로 그려진다 (text_color가 자동 결정)
 PALETTE: dict[str, str] = {
-    "red": "#EF5350",
-    "pink": "#EC407A",
-    "purple": "#AB47BC",
-    "indigo": "#5C6BC0",
-    "blue": "#42A5F5",
-    "sky": "#29B6F6",
-    "cyan": "#26C6DA",
-    "slate": "#78909C",
-    "teal": "#26A69A",
-    "green": "#66BB6A",
-    "lime": "#D4E157",
-    "yellow": "#FFEE58",
-    "amber": "#FFCA28",
-    "orange": "#FFA726",
-    "brown": "#8D6E63",
-    "gray": "#BDBDBD",
+    "red": "#F5A9A3",
+    "pink": "#F4AFC7",
+    "purple": "#D5B8E8",
+    "indigo": "#B6BEEA",
+    "blue": "#A7CDEF",
+    "sky": "#A6DCF2",
+    "cyan": "#A3E0E4",
+    "slate": "#C1CAD2",
+    "teal": "#A2D9CB",
+    "green": "#B5DFAF",
+    "lime": "#D5E8A4",
+    "yellow": "#F3E7A1",
+    "amber": "#F7DCA2",
+    "orange": "#F8C9A4",
+    "brown": "#D9BDAA",
+    "gray": "#D9DDE1",
 }
 
 # 배경색 (F9). 16색 셀과 먹색 글자가 모두 잘 보이도록 아주 연한 색만 둔다 (DESIGN.md)

@@ -19,7 +19,6 @@ PERIOD_MIN, PERIOD_MAX = 1, 7
 MAX_DAY_INDEX = max(DAYS_CHOICES) - 1
 UNDO_WINDOW = timedelta(seconds=5)
 DEFAULT_NAME = "새 시간표"
-COPY_SUFFIX = " (복사본)"
 OPTIONAL_FIELDS = ("room", "teacher", "memo")
 
 Clock = Callable[[], datetime]
@@ -379,14 +378,6 @@ class Workspace:
         tt = self.timetable(timetable_id)
         self._invalidate_undo()
         self.data.active_id = tt.id
-
-    def duplicate_timetable(self, timetable_id: str | None = None) -> Timetable:
-        source = self.timetable(timetable_id)
-        name = (source.name + COPY_SUFFIX)[:NAME_MAX]
-        self._invalidate_undo()
-        clone = self._create_timetable(name, after=source)
-        clone.cells = copy.deepcopy(source.cells)
-        return clone
 
     def clear_timetable(self, timetable_id: str | None = None) -> bool:
         tt = self.timetable(timetable_id)

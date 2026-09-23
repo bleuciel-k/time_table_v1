@@ -145,11 +145,6 @@ class AppController:
     def paste_cell(self, key: str, overwrite: bool = False) -> ActionResult:
         return self._mutate(lambda: self.workspace.paste_cell(key, overwrite), "붙여넣었어요.")
 
-    def duplicate_timetable(self) -> ActionResult:
-        return self._mutate(
-            self.workspace.duplicate_timetable, lambda tt: f"복제했어요: {tt.name}"
-        )
-
     # ---- 이미지 내보내기 (F6)
 
     def export_image(

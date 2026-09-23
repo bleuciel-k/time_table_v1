@@ -99,7 +99,10 @@ def test_cell_colors_are_drawn(workspace):
     layout = Layout(settings)
     image = open_image(render(workspace.active, settings))
     left, top, right, bottom = layout.cell_box(0, 0)  # 월 1교시 = 알고리즘(blue)
-    assert image.getpixel(((left + right) // 2, top + 6))[:3] == (0x42, 0xA5, 0xF5)
+    from app.palette import PALETTE
+
+    expected = tuple(int(PALETTE["blue"][i : i + 2], 16) for i in (1, 3, 5))
+    assert image.getpixel(((left + right) // 2, top + 6))[:3] == expected
 
 
 # ---- 줄바꿈과 말줄임

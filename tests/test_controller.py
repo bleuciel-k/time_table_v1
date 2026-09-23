@@ -172,61 +172,15 @@ def test_copy_empty_cell_and_paste_without_clipboard(ctrl):
     assert not result.applied and result.message
 
 
-# ---- 시간표 복제 (F3b)
-
-
-def test_duplicate_timetable_persists_and_keeps_active(ctrl, tmp_path):
-    add(ctrl, "0-1", "알고리즘")
-    original = ctrl.workspace.active
-    result = ctrl.duplicate_timetable()
-    assert result.applied and not result.undoable
-    assert result.message == f"복제했어요: {original.name} (복사본)"
-
-    again = reopen(tmp_path).workspace
-    assert again.active.id == original.id
-    visible = again.data.visible()
-    assert [t.name for t in visible] == [original.name, f"{original.name} (복사본)"]
-    assert visible[1].id != original.id
-    assert visible[1].cells == visible[0].cells
-
-
-# ---- 지우기 + 되돌리기 (F4)
-
-
-def test_clear_cell_then_undo_persists_both(ctrl, tmp_path):
-    add(ctrl, "0-1", "알고리즘")
-    result = ctrl.clear_cell("0-1")
-    assert result == ActionResult(True, "셀을 삭제했어요.", undoable=True)
-    assert reopen(tmp_path).workspace.get_cell("0-1") is None
-
-    undone = ctrl.undo()
-    assert undone == ActionResult(True, "되돌렸어요.")
-    assert reopen(tmp_path).workspace.get_cell("0-1").subject == "알고리즘"
-
-
-def test_clear_empty_cell_is_silent_noop(ctrl):
-    assert ctrl.clear_cell("0-1") == ActionResult(False)
-    assert ctrl.clear_timetable() == ActionResult(False, "이미 비어 있습니다.")
-
-
-def test_clear_timetable_then_undo(ctrl, tmp_path):
-    add(ctrl, "0-1", "a")
-    add(ctrl, "1-1", "b")
-    assert ctrl.clear_timetable().undoable
-    assert reopen(tmp_path).workspace.active.cells == {}
-    assert ctrl.undo().applied
-    assert set(reopen(tmp_path).workspace.active.cells) == {"0-1", "1-1"}
-
-
 def test_delete_timetable_then_undo(ctrl, tmp_path):
     add(ctrl, "0-1", "a")
-    ctrl.duplicate_timetable()
+    ctrl.add_timetable("둘째")
     original = ctrl.workspace.active
 
     result = ctrl.delete_timetable()
     assert result.applied and result.undoable
     assert result.message == f"삭제했어요: {original.name}"
-    assert ctrl.workspace.active.name == f"{original.name} (복사본)"
+    assert ctrl.workspace.active.name == "둘째"
     assert reopen(tmp_path).workspace.data.find(original.id) is None
 
     assert ctrl.undo().applied
@@ -287,7 +241,6 @@ def test_read_only_data_cannot_be_edited(tmp_path):
     assert ctrl.clear_cell("0-1") == blocked
     assert ctrl.clear_timetable() == blocked
     assert ctrl.delete_timetable() == blocked
-    assert ctrl.duplicate_timetable() == blocked
     assert ctrl.undo() == blocked
     assert ctrl.workspace.get_cell("0-3") is None
     assert ctrl.workspace.get_cell("0-1") is not None

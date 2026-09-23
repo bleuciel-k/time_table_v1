@@ -142,28 +142,6 @@ def test_paste_without_clipboard(ws):
         ws.paste_cell("0-2")
 
 
-# ---- 시간표 복제 (F3b)
-
-
-def test_duplicate_assigns_new_id_and_copies_cells(ws):
-    ws.set_cell("0-1", Cell(subject="알고리즘"))
-    source = ws.active
-    clone = ws.duplicate_timetable()
-    assert clone.id != source.id
-    assert len({t.id for t in ws.data.timetables}) == len(ws.data.timetables)
-    assert clone.name == f"{source.name} (복사본)"
-    assert clone.cells == source.cells
-    clone.cells["0-1"].subject = "변경"
-    assert source.cells["0-1"].subject == "알고리즘"
-    assert ws.data.timetables.index(clone) == ws.data.timetables.index(source) + 1
-
-
-def test_duplicate_with_real_ids_is_unique():
-    ws = Workspace()
-    ids = {ws.active.id} | {ws.duplicate_timetable().id for _ in range(20)}
-    assert len(ids) == 21
-
-
 # ---- 삭제 후 되돌리기 (F4)
 
 

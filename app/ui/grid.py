@@ -15,7 +15,7 @@ from app.model import (
     grid_cells,
     period_times,
 )
-from app.palette import DEFAULT_BACKGROUND, resolve_hex, text_color
+from app.palette import resolve_hex, text_color
 from app.ui.theme import text
 
 PERIOD_COL_WIDTH = 28
@@ -37,13 +37,11 @@ def build_grid(
     """핸들러가 None이면 해당 조작 없음 (읽기 전용)."""
     times = period_times(settings) if settings.show_times else None
     width = TIME_COL_WIDTH if times else PERIOD_COL_WIDTH
-    # 흰 배경에서는 연회색 빈 칸, 색 배경에서는 흰 빈 칸이 가장 잘 구분된다 (F9)
-    empty_fill = d.SURFACE_SOFT if settings.background == DEFAULT_BACKGROUND else d.CANVAS
     rows: list[ft.Control] = [_header(settings.days, width)]
     for offset, row in enumerate(grid_cells(timetable, settings)):
         period = PERIOD_MIN + offset
         cells = [
-            _cell(cell, cell_key(day, period), on_cell_click, on_cell_long_press, empty_fill)
+            _cell(cell, cell_key(day, period), on_cell_click, on_cell_long_press)
             for day, cell in enumerate(row)
         ]
         label = _period_label(period, times[offset] if times else None, width)
@@ -90,7 +88,6 @@ def _cell(
     key: str,
     on_click: KeyHandler | None,
     on_long_press: KeyHandler | None,
-    empty_fill: str = d.SURFACE_SOFT,
 ) -> ft.Container:
     interaction = {
         "ink": on_click is not None or on_long_press is not None,
@@ -98,10 +95,10 @@ def _cell(
         "on_long_press": (lambda e: on_long_press(key)) if on_long_press else None,
     }
     if cell is None:
+        # 배경과 같은 색으로 두고 윤곽선만 남긴다 — 비어 있다는 느낌은 테두리가 낸다
         return ft.Container(
             expand=1,
             height=CELL_HEIGHT,
-            bgcolor=empty_fill,
             border=ft.Border.all(1, d.HAIRLINE),
             border_radius=ft.BorderRadius.all(RADIUS),
             **interaction,

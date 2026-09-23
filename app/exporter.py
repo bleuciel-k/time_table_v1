@@ -36,7 +36,6 @@ FONT_CANDIDATES = (
 
 # 색은 화면과 같은 토큰을 쓴다 (DESIGN.md, T11)
 TRANSPARENT = (255, 255, 255, 0)  # 배경색이 기본(흰색)일 때만 PNG를 투명하게 둔다
-EMPTY_CELL_FILL = d.rgba(d.SURFACE_SOFT)
 EMPTY_CELL_BORDER = d.rgba(d.HAIRLINE)
 LABEL_COLOR = d.rgba(d.MUTED)
 HEADER_COLOR = d.rgba(d.MUTED)
@@ -128,12 +127,11 @@ def render(
         TRANSPARENT if plain else d.rgba(background_hex(settings.background)),
     )
     draw = ImageDraw.Draw(image)
-    empty_fill = EMPTY_CELL_FILL if plain else d.rgba(d.CANVAS)
     _draw_header(draw, layout)
     _draw_period_labels(draw, layout)
     for period_index, row in enumerate(grid_cells(timetable, settings)):
         for day, cell in enumerate(row):
-            _draw_cell(draw, layout, day, period_index, cell, empty_fill)
+            _draw_cell(draw, layout, day, period_index, cell)
     return _encode(image, options)
 
 
@@ -184,12 +182,12 @@ def _draw_cell(
     day: int,
     period_index: int,
     cell: Cell | None,
-    empty_fill: tuple[int, int, int, int] = EMPTY_CELL_FILL,
 ) -> None:
     box = layout.cell_box(day, period_index)
     if cell is None:
-        draw.rounded_rectangle(box, radius=layout.radius, fill=empty_fill,
-                               outline=EMPTY_CELL_BORDER, width=max(1, layout.scale))
+        # 배경과 같은 색(= 칠하지 않음) + 윤곽선만 (F9)
+        draw.rounded_rectangle(box, radius=layout.radius, outline=EMPTY_CELL_BORDER,
+                               width=max(1, layout.scale))
         return
 
     left, top, right, bottom = box

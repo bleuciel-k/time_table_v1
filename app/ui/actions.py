@@ -1,4 +1,4 @@
-"""셀 메뉴(편집/복사/붙여넣기/삭제), 시간표 메뉴(복제/비우기/삭제/계정), 결과 스낵바와 되돌리기 (F3, F4, F7).
+"""셀 메뉴(편집/복사/붙여넣기/삭제), 시간표 메뉴(비우기/삭제/계정), 결과 스낵바와 되돌리기 (F3, F4, F7).
 
 판단은 controller가 하고 여기서는 표시와 연결만 한다 (P5).
 """
@@ -142,10 +142,6 @@ class Actions:
                 ),
                 ft.PopupMenuItem(
                     "계정", icon=ft.Icons.ACCOUNT_CIRCLE, on_click=lambda e: self.open_account()
-                ),
-                ft.PopupMenuItem(
-                    "시간표 복제", icon=ft.Icons.COPY_ALL,
-                    on_click=lambda e: self.show_result(c.duplicate_timetable()),
                 ),
                 ft.PopupMenuItem(
                     "시간표 비우기", icon=ft.Icons.CLEAR_ALL,

@@ -100,14 +100,13 @@ def test_cells_belong_to_active_timetable(ctrl, tmp_path):
     assert first.cells["0-1"] == Cell(subject="알고리즘")
 
 
-def test_switch_after_duplicate_shows_copy(ctrl):
+def test_switch_keeps_each_timetable_cells(ctrl):
     form = ctrl.form_for("0-1")
     ctrl.update_subject(form, "알고리즘")
     ctrl.save_form(form)
-    ctrl.duplicate_timetable()
-    copy = ctrl.workspace.data.visible()[1]
-    assert ctrl.switch_timetable(copy.id).applied
-    assert ctrl.workspace.get_cell("0-1").subject == "알고리즘"
+    other = ctrl.workspace.add_timetable("둘째")
+    assert ctrl.switch_timetable(other.id).applied
+    assert ctrl.workspace.get_cell("0-1") is None  # 새 시간표는 비어 있다
 
 
 # ---- 읽기 전용
