@@ -114,9 +114,6 @@ def _clean(raw: dict[str, Any]) -> dict[str, Any]:
         lunch_minutes=_expect_int(
             settings_raw.get("lunch_minutes", defaults.lunch_minutes), "settings.lunch_minutes"
         ),
-        show_memo=_expect(
-            settings_raw.get("show_memo", defaults.show_memo), bool, "settings.show_memo"
-        ),
     )
     try:
         validate_settings(settings)
@@ -143,6 +140,9 @@ def _clean(raw: dict[str, Any]) -> dict[str, Any]:
                 name: _expect(c.get(name, ""), str, f"{where}.cells[{key}].{name}")
                 for name in ("subject", *OPTIONAL_FIELDS)
             }
+            cell["show_memo"] = _expect(
+                c.get("show_memo", False), bool, f"{where}.cells[{key}].show_memo"
+            )
             color = c.get("color")
             cell["color"] = color if isinstance(color, str) and color in PALETTE else DEFAULT_COLOR
             cells[key] = cell

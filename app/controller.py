@@ -47,6 +47,7 @@ class CellForm:
     teacher: str = ""
     memo: str = ""
     color: str = DEFAULT_COLOR
+    show_memo: bool = False  # 그리드에 메모를 보여 줄지 (F1)
     is_new: bool = True
     base_color: str = DEFAULT_COLOR  # 편집 시작 시의 색
     color_chosen: bool = False  # 사용자가 직접 고르면 자동 적용 중단 (F2)
@@ -63,12 +64,15 @@ class CellForm:
             teacher=cell.teacher,
             memo=cell.memo,
             color=cell.color,
+            show_memo=cell.show_memo,
             is_new=False,
             base_color=cell.color,
         )
 
     def to_cell(self) -> Cell:
-        return Cell(self.subject, self.room, self.teacher, self.memo, self.color)
+        return Cell(
+            self.subject, self.room, self.teacher, self.memo, self.color, self.show_memo
+        )
 
     @property
     def errors(self) -> dict[str, str]:

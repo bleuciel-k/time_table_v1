@@ -36,7 +36,10 @@ def build_sync(page: ft.Page, controller: AppController, render) -> SyncManager 
 
 def main(page: ft.Page) -> None:
     page.title = "시간표"
-    page.fonts = {d.FONT_FAMILY: d.FONT_FILE}  # assets/fonts/… (한·영·일 한 벌)
+    page.fonts = {  # assets/fonts/… (한·영·일 한 벌, 굵기 2종)
+        d.FONT_FAMILY: d.FONT_FILE,
+        d.FONT_FAMILY_MEDIUM: d.FONT_FILE_MEDIUM,
+    }
     page.theme = build_theme()
     page.theme_mode = ft.ThemeMode.LIGHT  # DESIGN.md는 흰 캔버스 기준의 라이트 전용 시스템
     page.bgcolor = d.CANVAS  # 실제 배경색은 render()에서 설정값에 맞춰 바꾼다 (F9)

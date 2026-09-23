@@ -32,6 +32,10 @@ def open_cell_editor(
         setattr(form, name, value or "")
         sync()
 
+    def on_show_memo(e: ft.Event[ft.Switch]) -> None:
+        form.show_memo = bool(e.control.value)
+        sync()
+
     def on_color(color: str) -> None:
         form.choose_color(color)
         sync()
@@ -65,6 +69,14 @@ def open_cell_editor(
         )
         for name, label in (("room", "강의실"), ("teacher", "교수"), ("memo", "메모"))
     }
+    show_memo = ft.Switch(
+        label="시간표에 메모 표시 (작은 글씨 2줄)",
+        value=form.show_memo,
+        on_change=on_show_memo,
+        active_color=d.ON_PRIMARY,
+        active_track_color=d.INK,
+        label_text_style=t.style(d.BODY_MD, d.BODY),
+    )
     swatches = ft.Row(wrap=True, spacing=d.SPACE_XS, run_spacing=d.SPACE_XS)
     hint = t.text(SUGGESTED_HINT, d.SMALL, color=d.MUTED)
     save_button = t.primary_button("저장", on_save)
@@ -90,6 +102,7 @@ def open_cell_editor(
         for name, field in optional.items():
             field.error = errors.get(name)
         save_button.disabled = not form.can_save
+        show_memo.visible = bool(form.memo.strip())  # 메모가 있을 때만 의미 있는 선택
         hint.visible = form.suggested
         swatches.controls = [swatch(color) for color in PALETTE]
         page.update()
@@ -99,6 +112,7 @@ def open_cell_editor(
         [
             subject,
             *optional.values(),
+            show_memo,
             t.label("색상"),
             swatches,
             hint,

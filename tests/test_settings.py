@@ -201,14 +201,13 @@ def test_invalid_lunch_settings(changes, field):
     assert field in info.value.errors
 
 
-def test_lunch_and_memo_survive_restart(tmp_path):
+def test_lunch_settings_survive_restart(tmp_path):
     ctrl, _ = AppController.open(Storage(tmp_path))
     settings = replace(
-        ctrl.workspace.data.settings, lunch=True, lunch_after=3, lunch_minutes=45, show_memo=True
+        ctrl.workspace.data.settings, lunch=True, lunch_after=3, lunch_minutes=45
     )
     assert ctrl.update_settings(settings).applied
 
     again, _ = AppController.open(Storage(tmp_path))
     restored = again.workspace.data.settings
     assert (restored.lunch, restored.lunch_after, restored.lunch_minutes) == (True, 3, 45)
-    assert restored.show_memo

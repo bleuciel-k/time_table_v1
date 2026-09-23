@@ -7,9 +7,12 @@ DESIGN.md는 마케팅 사이트용이라 히어로·섹션 리듬(96px)·가격
 
 from __future__ import annotations
 
-# 앱에 넣은 본문 폰트 (한국어·영어·일본어). 화면(Flet)과 이미지(Pillow)가 같은 파일을 쓴다
+# 앱에 넣은 본문 폰트 (한국어·영어·일본어). 화면(Flet)과 이미지(Pillow)가 같은 파일을 쓴다.
+# Flet은 한 가족에 파일 하나만 등록할 수 있어 굵기별로 가족을 따로 둔다 (500은 Medium 사용)
 FONT_FAMILY = "Noto Sans CJK KR"
+FONT_FAMILY_MEDIUM = "Noto Sans CJK KR Medium"
 FONT_FILE = "fonts/NotoSansCJKkr-Regular.otf"  # assets/ 기준 경로
+FONT_FILE_MEDIUM = "fonts/NotoSansCJKkr-Medium.otf"
 
 # ---------------------------------------------------------------- 색
 

@@ -312,3 +312,37 @@ def test_delete_last_timetable_creates_empty_one(ctrl):
     visible = ctrl.workspace.data.visible()
     assert len(visible) == 1 and visible[0].cells == {}
     assert ctrl.undo().applied  # 되돌리면 원래 시간표가 돌아온다
+
+
+# ---- 셀별 메모 표시 (F1)
+
+
+def test_show_memo_is_per_cell_and_persists(ctrl, tmp_path):
+    form = ctrl.form_for("0-1")
+    ctrl.update_subject(form, "알고리즘")
+    form.memo = "3주차 과제"
+    form.show_memo = True
+    assert ctrl.save_form(form).applied
+
+    other = ctrl.form_for("1-1")
+    ctrl.update_subject(other, "영어")
+    other.memo = "단어 시험"
+    assert ctrl.save_form(other).applied  # 기본은 꺼짐
+
+    again = reopen(tmp_path).workspace
+    assert again.get_cell("0-1").show_memo
+    assert not again.get_cell("1-1").show_memo
+
+
+def test_editing_cell_keeps_its_memo_setting(ctrl):
+    ctrl.workspace.set_cell("0-1", Cell(subject="알고리즘", memo="메모", show_memo=True))
+    form = ctrl.form_for("0-1")
+    assert form.show_memo
+    assert form.to_cell().show_memo
+
+
+def test_copied_cell_keeps_memo_setting(ctrl):
+    ctrl.workspace.set_cell("0-1", Cell(subject="알고리즘", memo="메모", show_memo=True))
+    assert ctrl.copy_cell("0-1").applied
+    assert ctrl.paste_cell("1-1").applied
+    assert ctrl.workspace.get_cell("1-1").show_memo

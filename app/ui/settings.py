@@ -62,11 +62,6 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
         draft = replace(draft, lunch=bool(e.control.value))
         sync()
 
-    def toggle_memo(e: ft.Event[ft.Switch]) -> None:
-        nonlocal draft
-        draft = replace(draft, show_memo=bool(e.control.value))
-        sync()
-
     def choose_background(value: str) -> None:
         nonlocal draft
         draft = replace(draft, background=value)
@@ -106,7 +101,6 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
 
     show_switch = switch("교시 시간 표시", draft.show_times, toggle_times)
     lunch_switch = switch("점심시간", draft.lunch, toggle_lunch)
-    memo_switch = switch("셀에 메모 표시 (작은 글씨 2줄)", draft.show_memo, toggle_memo)
 
     def background_swatch(key: str) -> ft.Container:
         selected = draft.background == key
@@ -162,7 +156,6 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
             time_fields,
             lunch_switch,
             lunch_fields,
-            memo_switch,
             background_label,
             background_row,
             t.actions_row(

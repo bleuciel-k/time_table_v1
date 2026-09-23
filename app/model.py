@@ -87,6 +87,7 @@ class Cell:
     teacher: str = ""
     memo: str = ""
     color: str = DEFAULT_COLOR
+    show_memo: bool = False  # 이 수업의 메모를 그리드·이미지에 보여 줄지 (F1)
 
 
 @dataclass
@@ -101,7 +102,6 @@ class Settings:
     lunch: bool = False  # 점심시간 표시 (F9)
     lunch_after: int = 4  # 몇 교시 뒤에 오는지
     lunch_minutes: int = 60
-    show_memo: bool = False  # 그리드 셀에 메모 표시 (F9)
 
 
 def settings_from_dict(raw: dict[str, Any]) -> Settings:
@@ -246,6 +246,7 @@ def normalize_cell(cell: Cell) -> Cell:
         teacher=cell.teacher.strip(),
         memo=cell.memo.strip(),
         color=cell.color,
+        show_memo=cell.show_memo,
     )
     errors = validate_cell(cleaned)
     if errors:

@@ -9,6 +9,11 @@ from app import design as d
 WEIGHTS = {400: ft.FontWeight.W_400, 500: ft.FontWeight.W_500, 600: ft.FontWeight.W_600}
 
 
+def font_for(weight: int) -> str:
+    """굵기에 맞는 폰트 가족. 500 이상은 Medium 파일을 쓴다 (가짜 굵게 방지)."""
+    return d.FONT_FAMILY_MEDIUM if weight >= 500 else d.FONT_FAMILY
+
+
 def build_theme(font_family: str | None = d.FONT_FAMILY) -> ft.Theme:
     """라이트 고정 테마. 폰트는 앱에 넣은 본고딕(한·영·일)을 쓴다."""
     return ft.Theme(
@@ -37,7 +42,14 @@ def text(
     value: str, role: tuple[int, int] = d.BODY_MD, color: str = d.BODY, **kwargs
 ) -> ft.Text:
     size, weight = role
-    return ft.Text(value, size=size, weight=WEIGHTS[weight], color=color, **kwargs)
+    return ft.Text(
+        value,
+        size=size,
+        weight=WEIGHTS[weight],
+        color=color,
+        font_family=font_for(weight),
+        **kwargs,
+    )
 
 
 def title(value: str, role: tuple[int, int] = d.TITLE_MD) -> ft.Text:
@@ -51,7 +63,9 @@ def label(value: str) -> ft.Text:
 
 def style(role: tuple[int, int], color: str) -> ft.TextStyle:
     size, weight = role
-    return ft.TextStyle(size=size, weight=WEIGHTS[weight], color=color)
+    return ft.TextStyle(
+        size=size, weight=WEIGHTS[weight], color=color, font_family=font_for(weight)
+    )
 
 
 # ---------------------------------------------------------------- 버튼

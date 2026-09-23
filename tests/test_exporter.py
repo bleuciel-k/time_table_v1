@@ -227,13 +227,11 @@ def test_lunch_band_adds_height_and_shifts_later_periods(workspace):
     assert render(workspace.active, with_lunch)  # 그려진다
 
 
-def test_memo_is_drawn_only_when_enabled(workspace):
-    from dataclasses import replace
-
+def test_memo_is_drawn_only_for_cells_that_ask(workspace):
     from app.model import Cell
 
-    workspace.set_cell("0-1", Cell(subject="알고리즘", memo="과제 제출일 확인"))
     settings = workspace.data.settings
+    workspace.set_cell("0-1", Cell(subject="알고리즘", memo="과제 제출일 확인"))
     without = render(workspace.active, settings)
-    with_memo = render(workspace.active, replace(settings, show_memo=True))
-    assert with_memo != without
+    workspace.set_cell("0-1", Cell(subject="알고리즘", memo="과제 제출일 확인", show_memo=True))
+    assert render(workspace.active, settings) != without

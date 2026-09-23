@@ -36,7 +36,9 @@ ELLIPSIS = "…"
 # 기기에 있는 CJK 폰트를 먼저 쓰고(APK 크기 절약), 없으면 번들 폰트를 쓴다.
 # 한글과 일본어를 모두 덮는 폰트여야 한다 — 예: macOS의 AppleSDGothicNeo는
 # 한글은 되지만 会·応 같은 일본어 한자가 없어 두부(□)로 그려진다.
-BUNDLED_FONT = str(Path(__file__).resolve().parent.parent / "assets" / "fonts" / "NotoSansCJKkr-Regular.otf")
+_ASSETS = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+BUNDLED_FONT = str(_ASSETS / "NotoSansCJKkr-Regular.otf")
+BUNDLED_FONT_MEDIUM = str(_ASSETS / "NotoSansCJKkr-Medium.otf")
 
 FONT_CANDIDATES = (
     BUNDLED_FONT,  # 앱에 넣은 폰트 (화면과 같은 글꼴)
@@ -176,7 +178,7 @@ def export_filename(name: str, when: date, fmt: str = "png") -> str:
 
 
 def _draw_header(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
-    font = load_font(d.CAPTION[0] * layout.scale)  # 요일 머리글 = 화면과 같은 캡션 크기
+    font = load_font(d.CAPTION[0] * layout.scale, medium=True)  # 요일 머리글 = 화면과 같은 캡션
     for day in range(layout.settings.days):
         left, _, right, _ = layout.cell_box(day, 0)
         center = ((left + right) // 2, layout.padding + layout.header_height // 2)
@@ -185,7 +187,7 @@ def _draw_header(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
 
 def _draw_period_labels(draw: ImageDraw.ImageDraw, layout: Layout) -> None:
     settings = layout.settings
-    number_font = load_font(13 * layout.scale)
+    number_font = load_font(13 * layout.scale, medium=True)
     time_font = load_font(9 * layout.scale)
     times = period_times(settings) if settings.show_times else None
     center_x = layout.padding + layout.label_width // 2
@@ -238,7 +240,7 @@ def _draw_cell(
     draw.rounded_rectangle(box, radius=layout.radius, fill=resolve_hex(cell.color))
     fill = text_color(cell.color)
     inner_width = (right - left) - d.SPACE_XS * 2 * layout.scale
-    subject_font = load_font(13 * layout.scale)  # 화면 셀과 같은 크기
+    subject_font = load_font(13 * layout.scale, medium=True)  # 화면 셀과 같은 크기·굵기
     room_font = load_font(11 * layout.scale)
 
     memo_font = load_font(9 * layout.scale)
@@ -249,7 +251,7 @@ def _draw_cell(
     ]
     if cell.room:
         rows += [(line, room_font) for line in wrap_text(cell.room, room_font, inner_width, 1)]
-    if layout.settings.show_memo and cell.memo:
+    if cell.show_memo and cell.memo:
         rows += [
             (line, memo_font)
             for line in wrap_text(cell.memo, memo_font, inner_width, MAX_MEMO_LINES)
@@ -309,16 +311,19 @@ def _encode(image: Image.Image, options: ExportOptions) -> bytes:
 # ---------------------------------------------------------------- 폰트
 
 
-def font_path() -> str | None:
+def font_path(medium: bool = False) -> str | None:
+    if medium and os.path.exists(BUNDLED_FONT_MEDIUM):
+        return BUNDLED_FONT_MEDIUM
     for candidate in FONT_CANDIDATES:
         if os.path.exists(candidate):
             return candidate
     return None
 
 
-@lru_cache(maxsize=32)
-def load_font(size: int) -> ImageFont.FreeTypeFont:
-    path = font_path()
+@lru_cache(maxsize=64)
+def load_font(size: int, medium: bool = False) -> ImageFont.FreeTypeFont:
+    """화면과 같은 글꼴. `medium=True`면 중간 굵기(과목명 등)."""
+    path = font_path(medium)
     if path is None:  # CJK 폰트가 없으면 글자가 깨질 수 있다 (T8에서 기기 확인)
         return ImageFont.load_default(size)
     return ImageFont.truetype(path, size)

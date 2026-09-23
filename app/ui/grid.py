@@ -45,7 +45,7 @@ def build_grid(
     for offset, row in enumerate(grid_cells(timetable, settings)):
         period = PERIOD_MIN + offset
         cells = [
-            _cell(cell, cell_key(day, period), on_cell_click, on_cell_long_press, settings)
+            _cell(cell, cell_key(day, period), on_cell_click, on_cell_long_press)
             for day, cell in enumerate(row)
         ]
         label = _period_label(period, times[offset] if times else None, width)
@@ -116,7 +116,6 @@ def _cell(
     key: str,
     on_click: KeyHandler | None,
     on_long_press: KeyHandler | None,
-    settings: Settings | None = None,
 ) -> ft.Container:
     interaction = {
         "ink": on_click is not None or on_long_press is not None,
@@ -154,7 +153,7 @@ def _cell(
                 text_align=ft.TextAlign.CENTER,
             )
         )
-    if settings is not None and settings.show_memo and cell.memo:
+    if cell.show_memo and cell.memo:
         lines.append(
             text(
                 cell.memo,
