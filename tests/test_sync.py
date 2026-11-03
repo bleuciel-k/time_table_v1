@@ -8,10 +8,12 @@ import pytest
 
 from app.sync import (
     AUTH_FILE,
+    DELETE_ACCOUNT_URL,
     REFRESH_URL,
     SIGN_IN_URL,
     Auth,
     AuthError,
+    CloudStore,
     Session,
     TokenStore,
 )
@@ -303,3 +305,51 @@ def test_token_store_corrupt_file_is_discarded(tmp_path: Path, content):
 def test_token_store_default_dir(monkeypatch, tmp_path):
     monkeypatch.setenv("FLET_APP_STORAGE_DATA", str(tmp_path))
     assert TokenStore().path == tmp_path / AUTH_FILE
+
+
+# ---- 계정 및 데이터 삭제
+
+
+def test_delete_account_success(make_auth, fb, tmp_path):
+    (tmp_path / "data.json").write_text("{}", "utf-8")
+    auth = signed_in(make_auth, fb)
+    fb.responses.append(ok({"kind": "identitytoolkit#DeleteAccountResponse"}))
+
+    auth.delete_account()
+
+    req = fb.requests[-1]
+    assert req.method == "POST"
+    assert str(req.url).startswith(DELETE_ACCOUNT_URL)
+    body = json.loads(req.content.decode("utf-8"))
+    assert body == {"idToken": "id-1"}
+    assert not auth.signed_in
+    assert not (tmp_path / AUTH_FILE).exists()
+    assert (tmp_path / "data.json").exists()  # 로컬 데이터 유지
+
+
+def test_delete_account_not_signed_in(make_auth):
+    auth = make_auth()
+    with pytest.raises(AuthError) as ex:
+        auth.delete_account()
+    assert ex.value.code == "reauth_required"
+
+
+def test_delete_account_user_not_found(make_auth, fb):
+    auth = signed_in(make_auth, fb)
+    fb.responses.append(fail("USER_NOT_FOUND"))
+    with pytest.raises(AuthError) as ex:
+        auth.delete_account()
+    assert ex.value.code == "user_not_found"
+
+
+def test_cloud_store_delete_user(make_auth, fb):
+    auth = signed_in(make_auth, fb)
+    client = httpx.Client(transport=httpx.MockTransport(fb))
+    store = CloudStore(auth, "https://db.firebaseio.com", client=client)
+    fb.responses.append(httpx.Response(200, json=None))
+
+    store.delete_user()
+
+    req = fb.requests[-1]
+    assert req.method == "DELETE"
+    assert str(req.url).startswith("https://db.firebaseio.com/users/uid-1.json")

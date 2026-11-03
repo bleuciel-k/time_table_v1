@@ -82,6 +82,10 @@ def _open_account_sheet(page: ft.Page, manager: SyncManager, show_result: ShowRe
         manager.sign_out()
         show_result(ActionResult(False, "로그아웃했어요. 이 기기의 시간표는 그대로 있어요."))
 
+    def delete_account() -> None:
+        close()
+        _confirm_delete_account(page, manager, show_result)
+
     sheet = t.menu_sheet(
         "계정",
         [
@@ -94,9 +98,82 @@ def _open_account_sheet(page: ft.Page, manager: SyncManager, show_result: ShowRe
             t.divider(),
             t.menu_item(ft.Icons.SYNC, "지금 동기화", lambda e: sync_now()),
             t.menu_item(ft.Icons.LOGOUT, "로그아웃", lambda e: sign_out()),
+            t.menu_item(
+                ft.Icons.PERSON_REMOVE,
+                "계정 및 데이터 삭제",
+                lambda e: delete_account(),
+                color=d.DANGER,
+            ),
         ],
     )
     page.show_dialog(sheet)
+
+
+def _confirm_delete_account(
+    page: ft.Page, manager: SyncManager, show_result: ShowResult
+) -> None:
+    error = t.text("", d.BODY_MD, color=d.DANGER, visible=False)
+    spinner = ft.ProgressRing(width=16, height=16, stroke_width=2, color=d.INK, visible=False)
+
+    def busy(value: bool) -> None:
+        spinner.visible = value
+        for button in dialog.actions:
+            button.disabled = value
+        page.update()
+
+    def cancel(e: ft.Event[ft.OutlinedButton]) -> None:
+        dialog.open = False
+        page.update()
+
+    def submit(e: ft.Event[ft.TextButton]) -> None:
+        error.visible = False
+        busy(True)
+
+        def work() -> None:
+            try:
+                manager.delete_account()
+            except SyncError as ex:
+                error.value, error.visible = ex.message, True
+                busy(False)
+                return
+            except Exception as ex:
+                error.value, error.visible = str(ex), True
+                busy(False)
+                return
+            dialog.open = False
+            busy(False)
+            show_result(
+                ActionResult(
+                    False, "계정과 클라우드 데이터를 삭제했어요. 이 기기의 시간표는 유지됩니다."
+                )
+            )
+
+        page.run_thread(work)
+
+    body = ft.Column(
+        [
+            t.text(
+                "클라우드에 저장된 모든 시간표 데이터와 계정이 영구적으로 삭제됩니다. "
+                "이 기기에 저장된 시간표는 그대로 유지됩니다.\n\n정말 삭제할까요?",
+                d.BODY_MD,
+            ),
+            error,
+        ],
+        tight=True,
+        spacing=d.SPACE_SM,
+        width=320,
+    )
+
+    dialog = t.dialog(
+        "계정 및 데이터 삭제",
+        body,
+        [
+            spinner,
+            t.secondary_button("취소", cancel),
+            t.danger_button("삭제하기", submit),
+        ],
+    )
+    page.show_dialog(dialog)
 
 
 def sync_summary(status: SyncStatus, dirty: bool) -> str:

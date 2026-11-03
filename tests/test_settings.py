@@ -82,7 +82,7 @@ def test_valid_settings():
         (Settings(days=4), "days"),
         (Settings(days=7), "days"),
         (Settings(periods=0), "periods"),
-        (Settings(periods=8), "periods"),
+        (Settings(periods=13), "periods"),
         (Settings(start_time="25:00"), "start_time"),
         (Settings(class_minutes=0), "class_minutes"),
         (Settings(class_minutes=181), "class_minutes"),
@@ -190,7 +190,7 @@ def test_lunch_hidden_when_after_last_period():
     ("changes", "field"),
     [
         ({"lunch_after": 0}, "lunch_after"),
-        ({"lunch_after": 7}, "lunch_after"),
+        ({"lunch_after": 12}, "lunch_after"),
         ({"lunch_minutes": 0}, "lunch_minutes"),
         ({"lunch_minutes": 181}, "lunch_minutes"),
     ],
@@ -211,3 +211,27 @@ def test_lunch_settings_survive_restart(tmp_path):
     again, _ = AppController.open(Storage(tmp_path))
     restored = again.workspace.data.settings
     assert (restored.lunch, restored.lunch_after, restored.lunch_minutes) == (True, 3, 45)
+
+
+def test_add_period_and_expand_beyond_seven(ctrl, tmp_path):
+    from app.ui.actions import Actions
+    rendered = []
+    actions = Actions(page=None, controller=ctrl, render=lambda: rendered.append(True))
+    ctrl.update_settings(replace(ctrl.workspace.data.settings, periods=7))
+    assert ctrl.workspace.data.settings.periods == 7
+
+    # 7교시에서 추가 -> 8교시
+    actions.add_period()
+    assert ctrl.workspace.data.settings.periods == 8
+    assert len(rendered) >= 1
+
+    # 8교시에서 추가 -> 9교시
+    actions.add_period()
+    assert ctrl.workspace.data.settings.periods == 9
+
+    # 9교시에 수업 추가 및 파일 저장 확인
+    ctrl.workspace.set_cell("0-9", Cell(subject="야간특강"))
+    ctrl.storage.save(ctrl.workspace.data)
+    reopened = AppController.open(Storage(tmp_path))[0]
+    assert reopened.workspace.data.settings.periods == 9
+    assert reopened.workspace.get_cell("0-9").subject == "야간특강"

@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from app.controller import AppController, SyncManager
-from app.model import DEFAULT_NAME, AppData, Cell, Settings, Timetable, Workspace, to_dict
+from app.model import DEFAULT_NAME, AppData, Cell, Settings, Timetable
 from app.storage import Storage
 from app.sync import (
     Auth,
@@ -612,6 +612,21 @@ def test_manager_sign_out_keeps_local_and_stops_requests(device_a):
     assert not manager.status.signed_in
     assert manager._job() is False
     assert device_a.subjects() == {"0-1": "수학", "1-1": "영어"}
+
+
+def test_manager_delete_account_deletes_remote_and_auth_keeps_local(device_a):
+    manager = make_manager(device_a, [])
+    device_a.add("0-1", "수학")
+    deleted = []
+    device_a.cloud.delete_user = lambda: deleted.append("cloud")
+    device_a.cloud._auth.delete_account = lambda: deleted.append("auth")
+
+    manager.delete_account()
+
+    assert deleted == ["cloud", "auth"]
+    assert device_a.subjects() == {"0-1": "수학"}
+    assert manager.status.error is None
+    assert manager.status.last_synced_at is None
 
 
 def test_manager_sign_in_runs_initial_merge(db, clock, tmp_path, device_a):

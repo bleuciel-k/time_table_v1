@@ -129,7 +129,7 @@ class AppController:
         form.set_subject(value, self.workspace.suggest_color(value))
 
     def save_form(self, form: CellForm) -> ActionResult:
-        return self._mutate(lambda: self.workspace.set_cell(form.key, form.to_cell()))
+        return self._mutate(lambda: self.workspace.set_block(form.key, form.to_cell()))
 
     # ---- 복사 (F3)
 
@@ -148,6 +148,24 @@ class AppController:
 
     def paste_cell(self, key: str, overwrite: bool = False) -> ActionResult:
         return self._mutate(lambda: self.workspace.paste_cell(key, overwrite), "붙여넣었어요.")
+
+    def move_cell(self, src_key: str, dest_key: str) -> ActionResult:
+        """수업을 다른 칸으로 옮기거나 맞바꾼다."""
+        return self._mutate(lambda: self.workspace.move_block(src_key, dest_key), "수업을 옮겼어요.")
+
+    def resize_block(self, day: int, start: int, end: int, new_start: int, new_end: int) -> ActionResult:
+        """연속 수업을 위/아래로 늘이거나 줄인다."""
+        return self._mutate(
+            lambda: self.workspace.resize_block(day, start, end, new_start, new_end),
+            "수업 길이를 바꿨어요.",
+        )
+
+    def extend_block_days(self, day: int, start: int, end: int, to_day: int) -> ActionResult:
+        """수업을 옆 요일로 늘린다."""
+        return self._mutate(
+            lambda: self.workspace.extend_block_days(day, start, end, to_day),
+            "수업을 옆 요일로 늘렸어요.",
+        )
 
     # ---- 이미지 내보내기 (F6)
 
@@ -182,7 +200,7 @@ class AppController:
     # ---- 지우기 + 되돌리기 (F4)
 
     def clear_cell(self, key: str) -> ActionResult:
-        return self._mutate(lambda: self.workspace.clear_cell(key), "셀을 삭제했어요.")
+        return self._mutate(lambda: self.workspace.clear_block(key), "셀을 삭제했어요.")
 
     def clear_timetable(self) -> ActionResult:
         return self._mutate(self.workspace.clear_timetable, "시간표를 비웠어요.", "이미 비어 있습니다.")
@@ -331,6 +349,15 @@ class SyncManager:
     def sign_out(self) -> None:
         """토큰만 지운다. 로컬 데이터는 그대로 둔다 (F7)."""
         self.auth.sign_out()
+        self._error = None
+        self._last_synced_at = None
+
+    def delete_account(self) -> None:
+        """클라우드 데이터와 계정을 삭제한다. 로컬 데이터는 유지한다 (P3, P7)."""
+        if not self.auth.signed_in:
+            return
+        self.cloud.delete_user()
+        self.auth.delete_account()
         self._error = None
         self._last_synced_at = None
 

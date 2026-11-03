@@ -15,7 +15,7 @@ SUBJECT_MAX = 30
 FIELD_MAX = 50
 NAME_MAX = 30
 DAYS_CHOICES = (5, 6)
-PERIOD_MIN, PERIOD_MAX = 1, 7
+PERIOD_MIN, PERIOD_MAX = 1, 12
 MAX_DAY_INDEX = max(DAYS_CHOICES) - 1
 UNDO_WINDOW = timedelta(seconds=5)
 DEFAULT_NAME = "새 시간표"
@@ -171,6 +171,46 @@ def grid_cells(timetable: Timetable, settings: Settings) -> list[list[Cell | Non
         [timetable.cells.get(f"{day}-{period}") for day in range(settings.days)]
         for period in range(PERIOD_MIN, settings.periods + 1)
     ]
+
+
+@dataclass(frozen=True)
+class Block:
+    """같은 요일에서 같은 수업이 이어지는 칸 묶음 (연속 수업). 빈 칸은 한 칸짜리 묶음."""
+
+    day: int
+    start: int  # 첫 교시
+    end: int  # 마지막 교시 (포함)
+    cell: Cell | None
+
+    @property
+    def span(self) -> int:
+        return self.end - self.start + 1
+
+
+def day_blocks(timetable: Timetable, settings: Settings) -> list[list[Block]]:
+    """`[요일][묶음]` 순서. 같은 요일에 똑같은 수업이 연속되면 하나로 합친다.
+
+    점심시간이 있으면 그 경계에서는 끊는다 (점심 띠가 사이에 들어가므로).
+    """
+    split_after = settings.lunch_after if has_lunch(settings) else None
+    result: list[list[Block]] = []
+    for day in range(settings.days):
+        blocks: list[Block] = []
+        for period in range(PERIOD_MIN, settings.periods + 1):
+            cell = timetable.cells.get(f"{day}-{period}")
+            prev = blocks[-1] if blocks else None
+            if (
+                prev is not None
+                and cell is not None
+                and prev.cell == cell
+                and prev.end == period - 1
+                and prev.end != split_after
+            ):
+                blocks[-1] = Block(day, prev.start, period, cell)
+            else:
+                blocks.append(Block(day, period, period, cell))
+        result.append(blocks)
+    return result
 
 
 def period_times(settings: Settings) -> list[tuple[str, str]]:
@@ -387,6 +427,186 @@ class Workspace:
         del tt.cells[key]
         self._touch(tt)
         return True
+
+    def move_cell(self, src_key: str, dest_key: str, timetable_id: str | None = None) -> bool:
+        """src_key의 수업을 dest_key로 옮긴다. dest_key에 이미 수업이 있으면 두 수업을 맞바꾼다."""
+        if src_key == dest_key:
+            return False
+        self._check_key_in_settings(src_key)
+        self._check_key_in_settings(dest_key)
+        tt = self.timetable(timetable_id)
+        if src_key not in tt.cells:
+            return False
+        self._record_undo("수업 이동", tt.id)
+        src_cell = tt.cells.pop(src_key)
+        if dest_key in tt.cells:
+            dest_cell = tt.cells.pop(dest_key)
+            tt.cells[src_key] = dest_cell
+        tt.cells[dest_key] = src_cell
+        self._touch(tt)
+        return True
+
+    # ---- 연속 수업 묶음 (같은 요일에 같은 수업이 이어지면 하나로 다룬다)
+
+    def block_keys(self, key: str, timetable_id: str | None = None) -> list[str]:
+        """key가 속한 연속 수업의 칸 키들 (위→아래). 빈 칸이면 [key]."""
+        day, period = parse_cell_key(key)
+        settings = self.data.settings
+        if day >= settings.days:
+            return [key]
+        for block in day_blocks(self.timetable(timetable_id), settings)[day]:
+            if block.start <= period <= block.end:
+                return [cell_key(day, p) for p in range(block.start, block.end + 1)]
+        return [key]
+
+    def set_block(self, key: str, cell: Cell, timetable_id: str | None = None) -> Cell:
+        """편집 내용을 연속 수업 전체에 적용한다 (빈 칸이면 그 칸만)."""
+        keys = self.block_keys(key, timetable_id) if self.get_cell(key, timetable_id) else [key]
+        saved = cell
+        for k in keys:
+            saved = self.set_cell(k, copy.deepcopy(cell), timetable_id)
+        return saved
+
+    def clear_block(self, key: str, timetable_id: str | None = None) -> bool:
+        """연속 수업 전체를 지운다."""
+        tt = self.timetable(timetable_id)
+        if key not in tt.cells:
+            return False
+        keys = self.block_keys(key, timetable_id)
+        self._record_undo("셀 삭제", tt.id)
+        for k in keys:
+            tt.cells.pop(k, None)
+        self._touch(tt)
+        return True
+
+    def move_block(self, src_key: str, dest_key: str, timetable_id: str | None = None) -> bool:
+        """연속 수업을 dest_key가 맨 위 칸이 되도록 옮긴다.
+
+        dest_key가 같은 길이의 다른 수업이면 서로 맞바꾼다.
+        """
+        if src_key == dest_key:
+            return False
+        self._check_key_in_settings(src_key)
+        self._check_key_in_settings(dest_key)
+        tt = self.timetable(timetable_id)
+        if src_key not in tt.cells:
+            return False
+        src_keys = self.block_keys(src_key, timetable_id)
+        if dest_key in src_keys:
+            return False
+        span = len(src_keys)
+        src_day, src_start = parse_cell_key(src_keys[0])
+        dest_day, dest_start = parse_cell_key(dest_key)
+        cell = tt.cells[src_keys[0]]
+
+        if dest_key in tt.cells:
+            dest_keys = self.block_keys(dest_key, timetable_id)
+            if len(dest_keys) != span:
+                raise ModelError("길이가 다른 수업과는 자리를 바꿀 수 없어요.")
+            dest_start = parse_cell_key(dest_keys[0])[1]
+            other = tt.cells[dest_keys[0]]
+            self._record_undo("수업 이동", tt.id)
+            for k in src_keys + dest_keys:
+                tt.cells.pop(k, None)
+            for i in range(span):
+                tt.cells[cell_key(dest_day, dest_start + i)] = copy.deepcopy(cell)
+                tt.cells[cell_key(src_day, src_start + i)] = copy.deepcopy(other)
+            self._touch(tt)
+            return True
+
+        dest_end = dest_start + span - 1
+        if dest_end > self.data.settings.periods:
+            raise ModelError("아래 칸이 모자라서 옮길 수 없어요.")
+        dest_keys = [cell_key(dest_day, p) for p in range(dest_start, dest_end + 1)]
+        if any(k in tt.cells and k not in src_keys for k in dest_keys):
+            raise ModelError("옮길 자리에 다른 수업이 있어요.")
+        self._record_undo("수업 이동", tt.id)
+        for k in src_keys:
+            del tt.cells[k]
+        for k in dest_keys:
+            tt.cells[k] = copy.deepcopy(cell)
+        self._touch(tt)
+        return True
+
+    def resize_block(
+        self, day: int, start: int, end: int, new_start: int, new_end: int,
+        timetable_id: str | None = None,
+    ) -> bool:
+        """연속 수업(start~end)의 위/아래 끝을 new_start~new_end로 늘이거나 줄인다.
+
+        늘일 때 다른 수업이 있는 칸을 만나면 그 앞에서 멈춘다. 최소 한 칸은 남긴다.
+        """
+        tt = self.timetable(timetable_id)
+        cell = self._block_cell(tt, day, start, end)
+        if cell is None:
+            return False
+        new_start = max(PERIOD_MIN, min(new_start, end))
+        new_end = min(self.data.settings.periods, max(new_end, start))
+
+        def free(period: int) -> bool:
+            other = tt.cells.get(f"{day}-{period}")
+            return other is None or other == cell
+
+        # 다른 수업에 막히면 거기서 멈춘다
+        for period in range(start - 1, new_start - 1, -1):
+            if not free(period):
+                new_start = period + 1
+                break
+        for period in range(end + 1, new_end + 1):
+            if not free(period):
+                new_end = period - 1
+                break
+        if (new_start, new_end) == (start, end):
+            return False
+        self._record_undo("수업 늘이기", tt.id)
+        for period in range(start, end + 1):
+            if not new_start <= period <= new_end:
+                del tt.cells[f"{day}-{period}"]
+        for period in range(new_start, new_end + 1):
+            tt.cells[f"{day}-{period}"] = copy.deepcopy(cell)
+        self._touch(tt)
+        return True
+
+    def extend_block_days(
+        self, day: int, start: int, end: int, to_day: int, timetable_id: str | None = None
+    ) -> bool:
+        """연속 수업(start~end)을 옆 요일(to_day까지)로 복사해 늘린다.
+
+        요일이 다르면 별개의 칸으로 남는다. 다른 수업이 있는 요일을 만나면 그 앞에서 멈춘다.
+        """
+        tt = self.timetable(timetable_id)
+        cell = self._block_cell(tt, day, start, end)
+        if cell is None:
+            return False
+        to_day = max(0, min(to_day, self.data.settings.days - 1))
+        step = 1 if to_day > day else -1
+        targets: list[int] = []
+        for target in range(day + step, to_day + step, step) if to_day != day else []:
+            cells = [tt.cells.get(f"{target}-{period}") for period in range(start, end + 1)]
+            if any(other is not None and other != cell for other in cells):
+                break
+            if any(other is None for other in cells):
+                targets.append(target)
+        if not targets:
+            return False
+        self._record_undo("수업 늘이기", tt.id)
+        for target in targets:
+            for period in range(start, end + 1):
+                tt.cells[f"{target}-{period}"] = copy.deepcopy(cell)
+        self._touch(tt)
+        return True
+
+    def _block_cell(self, tt: Timetable, day: int, start: int, end: int) -> Cell | None:
+        """start~end가 모두 같은 수업이면 그 수업, 아니면 None."""
+        if start > end:
+            return None
+        self._check_key_in_settings(cell_key(day, start))
+        self._check_key_in_settings(cell_key(day, end))
+        cells = [tt.cells.get(f"{day}-{period}") for period in range(start, end + 1)]
+        first = cells[0]
+        if first is None or any(other != first for other in cells):
+            return None
+        return first
 
     # ---- 시간표 (F3b, F4b, F4c, F8)
 

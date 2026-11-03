@@ -1,7 +1,6 @@
 """내보내기 연결 (F6): 컨트롤러가 이미지 bytes와 파일명을 만든다."""
 
 import json
-from dataclasses import replace
 from datetime import date
 from io import BytesIO
 from pathlib import Path
@@ -11,7 +10,7 @@ from PIL import Image
 
 from app.controller import AppController
 from app.exporter import ExportOptions, Layout
-from app.model import Cell, Settings, to_dict
+from app.model import Settings, to_dict
 from app.sample import sample_data
 from app.storage import DATA_FILE, Storage
 

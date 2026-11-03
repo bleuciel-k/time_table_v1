@@ -1,6 +1,6 @@
 """셀 편집 시트 (F1, F2). 입력 상태와 규칙은 `controller.CellForm`에 둔다 (P5). 스타일은 DESIGN.md."""
 
-from typing import Callable
+from typing import Any, Callable
 
 import flet as ft
 
@@ -15,7 +15,11 @@ SUGGESTED_HINT = "기존 과목의 색을 적용했어요."
 
 
 def open_cell_editor(
-    page: ft.Page, controller: AppController, key: str, on_saved: Callable[[], None]
+    page: ft.Page,
+    controller: AppController,
+    key: str,
+    on_saved: Callable[[], None],
+    on_deleted: Callable[[Any], None] | None = None,
 ) -> None:
     form = controller.form_for(key)
     day, period = parse_cell_key(key)
@@ -50,6 +54,16 @@ def open_cell_editor(
             on_saved()
         if result.message:
             page.show_dialog(t.snack_bar(result.message))
+
+    def on_delete(e: ft.Event[ft.TextButton]) -> None:
+        page.pop_dialog()
+        result = controller.clear_cell(key)
+        if on_deleted is not None:
+            on_deleted(result)
+        else:
+            on_saved()
+            if result.message:
+                page.show_dialog(t.snack_bar(result.message))
 
     subject = t.text_field(
         "과목명",
@@ -107,6 +121,12 @@ def open_cell_editor(
         swatches.controls = [swatch(color) for color in PALETTE]
         page.update()
 
+    actions_controls: list[ft.Control] = []
+    if not form.is_new:
+        actions_controls.append(t.danger_button("수업 삭제", on_delete))
+        actions_controls.append(ft.Container(expand=True))
+    actions_controls.extend([t.secondary_button("취소", on_cancel), save_button])
+
     sheet = t.sheet(
         f"{DAY_LABELS[day]}요일 {period}교시",
         [
@@ -116,7 +136,7 @@ def open_cell_editor(
             t.label("색상"),
             swatches,
             hint,
-            t.actions_row(t.secondary_button("취소", on_cancel), save_button),
+            t.actions_row(*actions_controls),
         ],
     )
     page.show_dialog(sheet)

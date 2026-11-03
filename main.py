@@ -12,7 +12,7 @@ from app.storage import Storage
 from app.sync import Auth, CloudStore
 from app.ui.actions import Actions
 from app.ui.grid import build_grid
-from app.ui.theme import build_theme, snack_bar, style, text
+from app.ui.theme import build_theme, snack_bar, text
 
 
 def build_sync(page: ft.Page, controller: AppController, render) -> SyncManager | None:
@@ -65,6 +65,14 @@ def main(page: ft.Page) -> None:
             settings,
             on_cell_click=actions.edit_cell if editable else None,
             on_cell_long_press=actions.open_cell_menu if editable else None,
+            on_add_period=actions.add_period if editable else None,
+            drag_mode=actions.drag_mode,
+            on_move_cell=actions.move_cell if editable else None,
+            available_width=(page.width - 2 * d.SPACE_MD) if page.width else None,
+            landing_keys=actions.landing_keys,
+            landing_controls=actions.landing_controls,
+            on_resize_block=actions.resize_block if editable else None,
+            on_extend_block=actions.extend_block if editable else None,
         )
         page.update()
 
@@ -87,10 +95,11 @@ def main(page: ft.Page) -> None:
             padding=ft.Padding.symmetric(horizontal=d.SPACE_XS, vertical=d.SPACE_XXS),
             border_radius=ft.BorderRadius.all(d.RADIUS_SM),
         ),
-        actions=None if controller.read_only else [actions.timetable_menu()],
+        actions=None if controller.read_only else [actions.hand_button(), actions.timetable_menu()],
     )
     page.add(ft.SafeArea(body, expand=True))
     render()
+    page.on_resize = lambda e: render()  # 창 크기가 바뀌면 드래그 카드 너비도 다시 맞춘다
     if sync is not None:
         sync.start()
         page.on_close = lambda e: sync.stop()

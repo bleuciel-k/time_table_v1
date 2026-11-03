@@ -172,6 +172,15 @@ def test_copy_empty_cell_and_paste_without_clipboard(ctrl):
     assert not result.applied and result.message
 
 
+def test_move_cell_via_controller(ctrl, tmp_path):
+    add(ctrl, "0-1", "알고리즘")
+    res = ctrl.move_cell("0-1", "1-2")
+    assert res.applied and res.undoable and res.message == "수업을 옮겼어요."
+    assert ctrl.workspace.get_cell("0-1") is None
+    assert ctrl.workspace.get_cell("1-2").subject == "알고리즘"
+    assert reopen(tmp_path).workspace.get_cell("1-2").subject == "알고리즘"
+
+
 def test_delete_timetable_then_undo(ctrl, tmp_path):
     add(ctrl, "0-1", "a")
     ctrl.add_timetable("둘째")

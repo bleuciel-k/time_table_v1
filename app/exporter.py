@@ -19,7 +19,7 @@ from app.model import (
     Cell,
     Settings,
     Timetable,
-    grid_cells,
+    day_blocks,
     has_lunch,
     lunch_time,
     period_times,
@@ -170,9 +170,11 @@ def render(
     _draw_header(draw, layout)
     _draw_period_labels(draw, layout)
     _draw_lunch(draw, layout)
-    for period_index, row in enumerate(grid_cells(timetable, settings)):
-        for day, cell in enumerate(row):
-            _draw_cell(draw, layout, day, period_index, cell)
+    # 같은 요일의 연속 수업은 화면처럼 한 덩어리로 이어 그린다
+    for blocks in day_blocks(timetable, settings):
+        for block in blocks:
+            _draw_cell(draw, layout, block.day, block.start - PERIOD_MIN, block.cell,
+                       last_index=block.end - PERIOD_MIN)
     return _encode(image, options)
 
 
@@ -238,8 +240,11 @@ def _draw_cell(
     day: int,
     period_index: int,
     cell: Cell | None,
+    last_index: int | None = None,
 ) -> None:
     box = layout.cell_box(day, period_index)
+    if last_index is not None and last_index != period_index:
+        box = (box[0], box[1], box[2], layout.cell_box(day, last_index)[3])
     if cell is None:
         # 배경과 같은 색(= 칠하지 않음) + 윤곽선만 (F9)
         draw.rounded_rectangle(box, radius=layout.radius, outline=EMPTY_CELL_BORDER,

@@ -16,6 +16,7 @@ from app.model import DEFAULT_NAME, AppData, Clock, to_dict, utc_now
 from app.storage import StorageFormatError, _atomic_write, _remove, parse_document, storage_dir
 
 SIGN_IN_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
+DELETE_ACCOUNT_URL = "https://identitytoolkit.googleapis.com/v1/accounts:delete"
 REFRESH_URL = "https://securetoken.googleapis.com/v1/token"
 AUTH_FILE = "auth.json"
 REFRESH_MARGIN = timedelta(seconds=60)  # 만료 60초 전에 미리 갱신
@@ -176,6 +177,26 @@ class Auth:
         self._store.clear()
         self.session = None
 
+    def delete_account(self) -> None:
+        """Firebase Auth 계정을 삭제하고 토큰을 지운다.
+
+        로그인 안 됨·토큰 거부 → AuthError("reauth_required"), 오프라인 → AuthError("network").
+        """
+        session = self.session
+        if session is None:
+            raise AuthError("reauth_required", "로그인되어 있지 않음")
+        token = self.id_token()
+        self._post(
+            DELETE_ACCOUNT_URL,
+            json={"idToken": token},
+            errors={
+                "USER_NOT_FOUND": "user_not_found",
+                "TOKEN_EXPIRED": "reauth_required",
+                "INVALID_ID_TOKEN": "reauth_required",
+            },
+        )
+        self.sign_out()
+
     def id_token(self) -> str:
         """유효한 ID token. 만료가 가까우면 갱신한다.
 
@@ -310,6 +331,10 @@ class CloudStore:
         """`etag`가 그대로일 때만 쓴다. 다른 기기가 먼저 썼으면(412) False."""
         resp = self._request("PUT", json=document, headers={"if-match": etag}, allow=(412,))
         return resp.status_code != 412
+
+    def delete_user(self) -> None:
+        """클라우드의 `/users/{uid}.json` 데이터를 영구 삭제한다."""
+        self._request("DELETE")
 
     def _request(self, method: str, allow: tuple[int, ...] = (), **kwargs: Any) -> httpx.Response:
         for attempt in range(2):

@@ -104,3 +104,77 @@ def test_cell_and_timetable_menus_open(page, ctrl):
     actions.confirm("덮어쓸까요?", "바뀝니다.", "덮어쓰기", lambda: None)
     actions.show_result(ActionResult(True, "삭제했어요.", undoable=True))
     assert len(page.dialogs) == 4
+
+
+def test_account_sheet_signed_in_and_delete_confirm_opens(page, ctrl):
+    from unittest.mock import MagicMock
+    from app.controller import SyncManager, SyncStatus
+    from app.ui.account import _confirm_delete_account
+
+    manager = MagicMock(spec=SyncManager)
+    manager.status = SyncStatus(signed_in=True, email="test@test.com")
+    manager.controller = ctrl
+    open_account(page, manager, noop_result)
+    _confirm_delete_account(page, manager, noop_result)
+    assert len(page.dialogs) == 2
+
+
+def test_cell_editor_shows_delete_button_for_existing_cell(page, ctrl):
+    open_cell_editor(page, ctrl, "0-1", on_saved=lambda: None)
+    sheet = page.dialogs[-1]
+    actions_row = sheet.content.content.controls[-1]
+    delete_button = actions_row.controls[0]
+    assert delete_button.content == "수업 삭제"
+
+
+def test_drag_mode_and_hand_button_smoke(page, ctrl):
+    rendered = []
+    actions = Actions(page, ctrl, render=lambda: rendered.append(True))
+    hand_btn = actions.hand_button()
+    assert hand_btn.icon == ft.Icons.PAN_TOOL_OUTLINED
+
+    # 손바닥 버튼 클릭 -> 모드 켜짐
+    actions.toggle_drag_mode()
+    assert actions.drag_mode is True
+    assert hand_btn.icon == ft.Icons.PAN_TOOL
+
+    # 그리드가 drag_mode로 정상 조립되는지 확인 (외형 유지 + Draggable/DragTarget 래핑)
+    grid_control = build_grid(
+        ctrl.workspace.active,
+        ctrl.workspace.data.settings,
+        drag_mode=True,
+        on_move_cell=actions.move_cell,
+    )
+    assert grid_control is not None
+    # 월요일 1교시(0-1: 알고리즘) 칸: 위치 컨테이너 → DragTarget → Draggable
+    holder = grid_control.controls[1].controls[1].content.controls[0]
+    assert isinstance(holder.content, ft.DragTarget)
+    assert isinstance(holder.content.content, ft.Draggable)
+    # 셀 외형의 border가 인위적인 색상 없이 기존 스타일(None)을 유지하는지 검증
+    assert holder.content.content.content.border is None
+
+    # 드래그 앤 드롭 이동 테스트: 0-1(수업) -> 1-2(빈칸)
+    actions.move_cell("0-1", "1-2")
+    assert ctrl.workspace.get_cell("1-2").subject == "알고리즘"
+    assert ctrl.workspace.get_cell("0-1") is None
+
+
+def test_drag_feedback_keeps_cell_size_and_landing_animates(ctrl):
+    settings = ctrl.workspace.data.settings
+    landing: list[ft.Control] = []
+    grid_control = build_grid(
+        ctrl.workspace.active,
+        settings,
+        drag_mode=True,
+        on_move_cell=lambda s, t: None,
+        available_width=600,
+        landing_keys={"0-1"},
+        landing_controls=landing,
+    )
+    draggable = grid_control.controls[1].controls[1].content.controls[0].content.content
+    feedback = draggable.content_feedback
+    # 드래그 카드는 실제 칸과 같은 높이·너비 (작아지지 않음)
+    assert feedback.height == draggable.content.height
+    assert feedback.width > 76
+    # 방금 놓은 칸은 떠 있는 크기에서 내려앉도록 애니메이션이 걸린다
+    assert len(landing) == 1 and landing[0].scale > 1 and landing[0].animate_scale is not None

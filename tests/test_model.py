@@ -48,7 +48,7 @@ def ws(clock: FakeClock) -> Workspace:
 def test_cell_key_roundtrip_and_range():
     assert cell_key(0, 1) == "0-1"
     assert parse_cell_key("5-7") == (5, 7)
-    for bad in [(6, 1), (-1, 1), (0, 0), (0, 8)]:
+    for bad in [(6, 1), (-1, 1), (0, 0), (0, 13)]:
         with pytest.raises(ModelError):
             cell_key(*bad)
     with pytest.raises(ModelError):
@@ -140,6 +140,38 @@ def test_paste_without_clipboard(ws):
     assert ws.copy_cell("0-1") is None
     with pytest.raises(ModelError):
         ws.paste_cell("0-2")
+
+
+# ---- 수업 이동 및 맞바꿈 (드래그앤드롭)
+
+
+def test_move_cell_to_empty(ws):
+    ws.set_cell("0-1", Cell(subject="알고리즘", room="K301"))
+    assert ws.move_cell("0-1", "1-2")
+    assert ws.get_cell("0-1") is None
+    assert ws.get_cell("1-2").subject == "알고리즘"
+    assert ws.undo_label == "수업 이동"
+    assert ws.undo()
+    assert ws.get_cell("0-1").subject == "알고리즘"
+    assert ws.get_cell("1-2") is None
+
+
+def test_move_cell_swap_occupied(ws):
+    ws.set_cell("0-1", Cell(subject="알고리즘"))
+    ws.set_cell("1-2", Cell(subject="자료구조"))
+    assert ws.move_cell("0-1", "1-2")
+    # 두 수업의 위치가 서로 맞바뀜
+    assert ws.get_cell("0-1").subject == "자료구조"
+    assert ws.get_cell("1-2").subject == "알고리즘"
+    assert ws.undo()
+    assert ws.get_cell("0-1").subject == "알고리즘"
+    assert ws.get_cell("1-2").subject == "자료구조"
+
+
+def test_move_cell_same_or_empty_is_noop(ws):
+    ws.set_cell("0-1", Cell(subject="알고리즘"))
+    assert not ws.move_cell("0-1", "0-1")
+    assert not ws.move_cell("2-3", "2-4")  # 빈 칸 이동은 무시
 
 
 # ---- 삭제 후 되돌리기 (F4)
@@ -252,7 +284,7 @@ def test_update_settings_validation_keeps_hidden_cells(ws):
     ws.set_cell("5-7", Cell(subject="a"))
     ws.update_settings(Settings(days=5, periods=5))
     assert ws.get_cell("5-7") is not None
-    for days, periods in [(4, 5), (7, 5), (5, 0), (5, 8)]:
+    for days, periods in [(4, 5), (7, 5), (5, 0), (5, 13)]:
         with pytest.raises(ValidationError):
             ws.update_settings(Settings(days, periods))
 
@@ -297,3 +329,66 @@ def test_empty_appdata_gets_default_timetable():
     ws = Workspace(data)
     assert ws.active.name == "새 시간표"
     assert data.active_id == ws.active.id
+
+
+# ---- 연속 수업 (늘이기·합치기)
+
+
+def _run(ws, day):
+    from app.model import day_blocks
+    return [(b.start, b.end, b.cell.subject if b.cell else None) for b in day_blocks(ws.active, ws.data.settings)[day]]
+
+
+def test_resize_block_down_and_up_merges(ws):
+    ws.set_cell("2-2", Cell(subject="실험"))
+    assert ws.resize_block(2, 2, 2, 2, 4)
+    assert _run(ws, 2)[1] == (2, 4, "실험")
+    assert ws.resize_block(2, 2, 4, 1, 4)  # 위로도
+    assert _run(ws, 2)[0] == (1, 4, "실험")
+    assert ws.resize_block(2, 1, 4, 1, 2)  # 줄이기
+    assert ws.get_cell("2-3") is None and ws.get_cell("2-2").subject == "실험"
+    assert ws.undo() and ws.get_cell("2-4").subject == "실험"
+
+
+def test_resize_block_stops_at_other_class(ws):
+    ws.set_cell("2-1", Cell(subject="실험"))
+    ws.set_cell("2-3", Cell(subject="다른"))
+    assert ws.resize_block(2, 1, 1, 1, 5)
+    assert _run(ws, 2)[0] == (1, 2, "실험")
+    assert not ws.resize_block(2, 1, 2, 1, 5)  # 더는 못 늘림
+
+
+def test_extend_block_days_keeps_separate_cells(ws):
+    ws.set_cell("1-3", Cell(subject="실험"))
+    ws.set_cell("1-4", Cell(subject="실험"))
+    ws.set_cell("4-3", Cell(subject="막힘"))
+    assert ws.extend_block_days(1, 3, 4, 4)  # 화→금, 금요일은 막혀서 목요일까지
+    for day in (2, 3):
+        assert _run(ws, day)[2] == (3, 4, "실험")
+    assert ws.get_cell("4-3").subject == "막힘"
+    assert ws.extend_block_days(1, 3, 4, 0)  # 월요일로
+    assert ws.get_cell("0-4").subject == "실험"
+
+
+def test_block_ops_treat_run_as_one(ws):
+    for key in ("3-1", "3-2"):
+        ws.set_cell(key, Cell(subject="세미나"))
+    ws.set_block("3-2", Cell(subject="세미나2"))
+    assert ws.get_cell("3-1").subject == "세미나2"
+    assert ws.move_block("3-1", "4-3")
+    assert ws.get_cell("4-3").subject == ws.get_cell("4-4").subject == "세미나2"
+    assert ws.get_cell("3-1") is None and ws.get_cell("3-2") is None
+    assert ws.clear_block("4-4")
+    assert ws.get_cell("4-3") is None
+
+
+def test_move_block_rejects_overflow_and_mismatched_swap(ws):
+    import pytest
+    from app.model import ModelError
+    for key in ("3-1", "3-2"):
+        ws.set_cell(key, Cell(subject="세미나"))
+    with pytest.raises(ModelError):
+        ws.move_block("3-1", "3-5")  # 5교시에서 2칸은 넘친다
+    ws.set_cell("4-1", Cell(subject="한칸"))
+    with pytest.raises(ModelError):
+        ws.move_block("3-1", "4-1")

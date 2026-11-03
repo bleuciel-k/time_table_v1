@@ -1,9 +1,9 @@
 [project]
 name = "timetable"
-version = "0.0.1"
-description = "시간표 앱 (Android) — T0 스파이크"
+version = "1.0.0"
+description = "시간표 앱 (Android)"
 requires-python = ">=3.12"
-# R3: T0 통과 버전으로 고정
+# R3: 검증된 버전으로 고정
 dependencies = [
   "flet==1.0.0",
   "pillow==12.2.0",  # R2: pypi.flet.dev의 Android 휠이 12.2.0까지만 제공됨
@@ -20,10 +20,12 @@ company = "seonho"
 
 [tool.flet.app]
 path = "."
-# 앱 실행에 필요 없는 파일과 로컬 데이터(.flet/.data)는 APK에 넣지 않는다
+# 앱 실행에 필요 없는 개발 파일과 산출물은 APK에 넣지 않는다
 exclude = [
-  ".git", ".venv", ".flet", ".data", ".pytest_cache", ".claude", ".specify",
-  "tests", "timetable_spec.md",
+  ".git", ".venv", ".flet", ".data", ".pytest_cache", ".claude", ".specify", ".idea",
+  "build", "tests", "scripts",
+  "timetable_spec.md", "DESIGN.md", "config.example.py",
+  "assets/Timetable_icon.png",
 ]
 
 [tool.pytest.ini_options]
