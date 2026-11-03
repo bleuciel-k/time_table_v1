@@ -173,6 +173,14 @@ def divider() -> ft.Divider:
     return ft.Divider(height=1, thickness=1, color=d.HAIRLINE)
 
 
+# 부드러운 감속 모달 애니메이션 스타일 (과한 튕김 없이 부드럽게 감속)
+SHEET_ANIMATION = ft.AnimationStyle(
+    duration=260,
+    reverse_duration=200,
+    curve=ft.AnimationCurve.EASE_OUT_CUBIC,
+)
+
+
 def sheet(heading: str, controls: Iterable[ft.Control], scrollable: bool = True) -> ft.BottomSheet:
     """제목 + 내용 + (보통) 버튼 줄로 이루어진 바텀 시트."""
     return ft.BottomSheet(
@@ -192,6 +200,7 @@ def sheet(heading: str, controls: Iterable[ft.Control], scrollable: bool = True)
         shape=ft.RoundedRectangleBorder(radius=d.RADIUS_LG),
         show_drag_handle=True,
         scrollable=scrollable,
+        animation_style=SHEET_ANIMATION,
     )
 
 
@@ -218,6 +227,7 @@ def menu_sheet(heading: str, items: Iterable[ft.Control]) -> ft.BottomSheet:
         bgcolor=d.CANVAS,
         shape=ft.RoundedRectangleBorder(radius=d.RADIUS_LG),
         show_drag_handle=True,
+        animation_style=SHEET_ANIMATION,
     )
 
 

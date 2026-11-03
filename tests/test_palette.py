@@ -12,6 +12,8 @@ from app.palette import (
     WHITE,
     background_hex,
     contrast_ratio,
+    darken_hex,
+    lighten_hex,
     resolve_hex,
     text_color,
 )
@@ -63,3 +65,14 @@ def test_backgrounds_are_pale_and_labelled():
 def test_background_hex_falls_back_to_default():
     assert background_hex("ivory") == BACKGROUNDS["ivory"]
     assert background_hex("없는색") == BACKGROUNDS[DEFAULT_BACKGROUND]
+
+
+def test_lighten_and_darken_hex():
+    color = "#A7CDEF"
+    lightened = lighten_hex(color, 0.15)
+    darkened = darken_hex(color, 0.10)
+    assert lightened.startswith("#") and len(lightened) == 7
+    assert darkened.startswith("#") and len(darkened) == 7
+    assert lightened != color
+    assert darkened != color
+

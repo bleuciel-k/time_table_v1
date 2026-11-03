@@ -144,3 +144,15 @@ def test_edit_mode_adds_edge_handles_only_to_classes():
     # 평소 모드에서는 손잡이가 없다
     plain = _day_stack(build_grid(ws.active, ws.data.settings), 0)
     assert len(plain) == 5
+
+
+def test_calc_cell_height_responsive():
+    from app.ui.grid import calc_cell_height
+    settings = Settings(periods=5)
+    # available_height가 주어지지 않으면 기본값 84 (cell_width 없을 때)
+    assert calc_cell_height(None, settings) == 84
+    # cell_width가 주어지면 가로 대비 약 1.25배 종횡비로 자연스럽게 계산
+    assert calc_cell_height(None, settings, cell_width=60) == 75.0
+    # 태블릿이나 스마트폰 화면 비율에 맞추되 과도하게 길쭉해지지 않고 안정적 범위(66~108) 유지
+    assert 66 <= calc_cell_height(900, settings, cell_width=60) <= 108
+    assert 66 <= calc_cell_height(400, settings, cell_width=60) <= 108

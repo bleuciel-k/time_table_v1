@@ -85,3 +85,24 @@ def text_color(background: str) -> str:
     if contrast_ratio(background, BLACK) >= contrast_ratio(background, WHITE):
         return BLACK
     return WHITE
+
+
+def lighten_hex(color: str, amount: float = 0.12) -> str:
+    """hex 색상을 밝게 띄워 부드러운 하이라이트 틴트를 만든다."""
+    h = resolve_hex(color).lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    r = min(255, int(r + (255 - r) * amount))
+    g = min(255, int(g + (255 - g) * amount))
+    b = min(255, int(b + (255 - b) * amount))
+    return f"#{r:02X}{g:02X}{b:02X}"
+
+
+def darken_hex(color: str, amount: float = 0.04) -> str:
+    """hex 색상을 살짝 차분하게 눌러 깊이감을 만든다."""
+    h = resolve_hex(color).lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    r = max(0, int(r * (1.0 - amount)))
+    g = max(0, int(g * (1.0 - amount)))
+    b = max(0, int(b * (1.0 - amount)))
+    return f"#{r:02X}{g:02X}{b:02X}"
+

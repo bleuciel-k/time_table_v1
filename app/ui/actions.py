@@ -38,46 +38,104 @@ class Actions:
         self.picker = picker
         self.sync = sync
         self.drag_mode: bool = False
+        self.dragging_cell_key: str | None = None
+        self.on_drag_listener: Callable[[bool, str | None], None] | None = None
         self.landing_keys: set[str] = set()  # 방금 이동해 내려앉는 칸 (render가 읽는다)
         self.landing_controls: list[ft.Control] = []
-        self.hand_btn = ft.IconButton(
-            icon=ft.Icons.PAN_TOOL_OUTLINED,
-            icon_color=d.INK,
-            tooltip="수업 이동 모드 (손바닥/드래그)",
+        self._hand_icon = ft.Image(
+            src="pinch_icon.png",
+            width=22,
+            height=22,
+            fit=ft.BoxFit.CONTAIN,
+            color=d.INK,
+        )
+        self.hand_btn = ft.Container(
+            content=self._hand_icon,
+            width=36,
+            height=36,
+            border_radius=ft.BorderRadius.all(18),
+            ink=True,
+            alignment=ft.Alignment.CENTER,
+            scale=1.0,
+            animate_scale=ft.Animation(140, ft.AnimationCurve.EASE_OUT_CUBIC),
+            tooltip="수업 수정 모드",
             on_click=lambda e: self.toggle_drag_mode(),
         )
 
     def toggle_drag_mode(self) -> None:
         self.drag_mode = not self.drag_mode
-        self.hand_btn.icon = ft.Icons.PAN_TOOL if self.drag_mode else ft.Icons.PAN_TOOL_OUTLINED
-        self.hand_btn.icon_color = d.LINK if self.drag_mode else d.INK
+        self.dragging_cell_key = None
+        self._hand_icon.color = d.LINK if self.drag_mode else d.INK
         self.hand_btn.bgcolor = d.SURFACE_STRONG if self.drag_mode else None
+        self.hand_btn.scale = 1.15 if self.drag_mode else 1.0
         self.hand_btn.tooltip = (
-            "수업 이동 모드 끄기" if self.drag_mode else "수업 이동 모드 (손바닥/드래그)"
+            "수업 수정 모드 끄기" if self.drag_mode else "수업 수정 모드"
         )
         self.render()
         if self.drag_mode:
             self.show_result(
                 ActionResult(
-                    False, "수정 모드: 수업을 끌어서 옮기고, 가장자리를 끌어서 위·아래·양옆으로 늘리세요."
+                    False, "수정 모드: 수업을 끌어서 옮기거나 하단 휴지통으로 삭제하고, 가장자리를 끌어 늘리세요."
                 )
             )
         else:
-            self.show_result(ActionResult(False, "수업 이동 모드를 종료했어요."))
+            self.show_result(ActionResult(False, "수업 수정 모드를 종료했어요."))
+
+    def on_drag_change(self, dragging: bool, key: str | None) -> None:
+        """수업을 드래그하기 시작하거나 끝났을 때 상태를 기록하고 리스너에 알린다."""
+        self.dragging_cell_key = key if dragging else None
+        if self.on_drag_listener:
+            self.on_drag_listener(dragging, key)
+
+    def delete_dragged_cell(self, key: str | None = None) -> None:
+        target_key = key or self.dragging_cell_key
+        self.dragging_cell_key = None
+        if target_key:
+            self.show_result(self.controller.clear_cell(target_key))
 
     def move_cell(self, src_key: str, dest_key: str) -> None:
-        # 옮긴 수업(맞바꿨다면 상대 수업도)이 제자리로 내려앉는 애니메이션
-        self._apply_with_landing(self.controller.move_cell(src_key, dest_key), {src_key, dest_key})
+        """수업을 다른 칸으로 옮기거나 맞바꾼다. 연속 수업(span >= 2) 이동 시 스마트 슬롯 매칭 적용."""
+        resolved_dest = dest_key
+        try:
+            tt = self.controller.workspace.active
+            src_keys = self.controller.workspace.block_keys(src_key)
+            span = len(src_keys)
+            # 빈 칸으로 이동하는 2칸 이상의 연속 수업인 경우
+            if span > 1 and dest_key not in tt.cells:
+                dest_day, dest_start = parse_cell_key(dest_key)
+                settings = self.controller.workspace.data.settings
+                # 사용자가 카드의 1번째, 2번째, ... n번째 칸 중 어디를 잡고 놓았더라도
+                # dest_start를 포함하는 span 크기의 빈 슬롯을 탐색하여 최적의 시작 위치를 찾음
+                candidate_starts = [dest_start - offset for offset in range(span)]
+                for c_start in candidate_starts:
+                    if c_start < PERIOD_MIN:
+                        continue
+                    c_end = c_start + span - 1
+                    if c_end > settings.periods:
+                        continue
+                    c_keys = [cell_key(dest_day, p) for p in range(c_start, c_end + 1)]
+                    if not any(k in tt.cells and k not in src_keys for k in c_keys):
+                        resolved_dest = cell_key(dest_day, c_start)
+                        break
+        except Exception:
+            resolved_dest = dest_key
 
-    def resize_block(self, day: int, start: int, end: int, new_start: int, new_end: int) -> None:
+        # 옮긴 수업(맞바꿨다면 상대 수업도)이 제자리로 내려앉는 애니메이션
+        result = self.controller.move_cell(src_key, resolved_dest)
+        dest_keys = self.controller.workspace.block_keys(resolved_dest) if result.applied else {resolved_dest}
+        landing_targets = set(src_keys) | set(dest_keys)
+        self._apply_with_landing(result, landing_targets)
+
+    def resize_block(self, day: int, start: int, end: int, new_start: int, new_end: int) -> ActionResult:
         """수정 모드에서 수업 위/아래 가장자리를 끌었을 때."""
         result = self.controller.resize_block(day, start, end, new_start, new_end)
         if not result.applied and result.message is None:
             result = ActionResult(False, "다른 수업이 있어서 더 늘릴 수 없어요.")
         periods = range(max(PERIOD_MIN, new_start), min(PERIOD_MAX, new_end) + 1)
         self._apply_with_landing(result, {cell_key(day, p) for p in periods})
+        return result
 
-    def extend_block(self, day: int, start: int, end: int, to_day: int) -> None:
+    def extend_block(self, day: int, start: int, end: int, to_day: int) -> ActionResult:
         """수정 모드에서 수업 양옆 가장자리를 끌었을 때."""
         result = self.controller.extend_block_days(day, start, end, to_day)
         if not result.applied and result.message is None:
@@ -89,6 +147,7 @@ class Actions:
             if 0 <= target < self.controller.workspace.data.settings.days
         }
         self._apply_with_landing(result, keys)
+        return result
 
     def _apply_with_landing(self, result: ActionResult, keys: set[str]) -> None:
         if result.applied:
@@ -96,24 +155,15 @@ class Actions:
             self.landing_controls = []
         self.show_result(result)
         self.landing_keys = set()
-        controls, self.landing_controls = self.landing_controls, []
-        if controls and self.page is not None:
-            self.page.run_task(self._settle, controls)
+        self.landing_controls = []
 
-    async def _settle(self, controls: list[ft.Control]) -> None:
-        await asyncio.sleep(0.02)  # 떠 있는 크기로 한 번 그려진 뒤에 줄여야 애니메이션이 보인다
-        for control in controls:
-            control.scale = 1.0
-            control.update()
-
-    def hand_button(self) -> ft.IconButton:
+    def hand_button(self) -> ft.Control:
         return self.hand_btn
 
     # ---- 결과 표시
 
     def show_result(self, result: ActionResult) -> None:
-        if result.applied:
-            self.render()
+        self.render()  # 성공/실패 무관하게 항상 UI와 시간표 모델을 일치시켜 겹침 잔상 방지
         if not result.message or self.page is None:
             return
         self.page.show_dialog(
