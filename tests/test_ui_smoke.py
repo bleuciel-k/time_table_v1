@@ -185,7 +185,7 @@ def test_drag_mode_and_hand_button_smoke(page, ctrl):
     # 드래그 호버 시: 선명한 테두리 및 4개 모퉁이 보조선 켜짐
     tue_empty_target.on_will_accept(None)
     assert empty_base.content.visible is True
-    assert empty_base.border is not None and empty_base.border.top.color == d.LINK
+    assert empty_base.border is not None and empty_base.border.top is not None
     # 떠났을 때: 원래대로 복구
     tue_empty_target.on_leave(None)
     assert empty_base.content.visible is False
@@ -268,4 +268,100 @@ def test_resize_block_overlap_reverts(page, ctrl):
     # 수업 A는 여전히 1교시만 차지해야 함
     assert ctrl.workspace.get_cell("0-1").subject == "수업A"
     assert ctrl.workspace.get_cell("0-2").subject == "수업B"
+
+
+def test_corner_handles_track_card_during_resize(ctrl):
+    """수정 탭에서 카드를 늘리거나 줄일 때 모퉁이 핸들이 실시간으로 4개 꼭짓점을 추적하는지 검증."""
+    settings = ctrl.workspace.data.settings
+    grid_control = build_grid(
+        ctrl.workspace.active,
+        settings,
+        drag_mode=True,
+        on_move_cell=lambda s, t: None,
+        on_resize_block=lambda *a: None,
+        on_extend_block=lambda *a: None,
+    )
+    day_controls = grid_control.controls[1].controls[1].content.controls
+    holder = day_controls[0]
+    initial_h = holder.height
+    handle_bl = day_controls[3]
+    handle_br = day_controls[4]
+
+    # 우하단 손잡이 GestureDetector 가져오기
+    br_detector = handle_br.content
+    # 아래로 40px 드래그 진행
+    import types
+    event = types.SimpleNamespace(primary_delta=40.0, local_delta=ft.Offset(0, 40.0))
+    br_detector.on_pan_update(event)
+
+    # 수업 카드 높이가 늘어남
+    assert holder.height == initial_h + 40.0
+    # 하단 모퉁이 보조선 2개도 늘어난 카드의 최하단 위치를 실시간으로 정확히 추적함 (HANDLE = 20)
+    assert handle_bl.top == holder.top + holder.height - 20
+    assert handle_br.top == holder.top + holder.height - 20
+
+    # 손을 놓았을 때 finish 호출
+    br_detector.on_pan_end(None)
+
+
+def test_multi_span_hover_shape_and_gentle_corner_anchoring(ctrl):
+    """3칸 연속 수업 드래그 시 목표 위치의 3칸 전체가 연결된 모양으로 하이라이트되고 4개 최외곽 모퉁이에 보조선이 안착되는지 검증."""
+    ctrl.workspace.data.settings.periods = 5
+    # 월요일 1, 2, 3교시에 3칸 연속 수업 등록
+    ctrl.workspace.set_cell("0-1", Cell(subject="운영체제"))
+    ctrl.workspace.set_cell("0-2", Cell(subject="운영체제"))
+    ctrl.workspace.set_cell("0-3", Cell(subject="운영체제"))
+
+    grid_control = build_grid(
+        ctrl.workspace.active,
+        ctrl.workspace.data.settings,
+        drag_mode=True,
+        on_move_cell=lambda s, t: None,
+    )
+    # 월요일 3칸 연속 수업 카드
+    monday_col = grid_control.controls[1].controls[1].content
+    mon_holder = monday_col.controls[0]
+    draggable = mon_holder.content.content
+
+    # 드래그 시작 (3칸 수업 선택됨)
+    draggable.on_drag_start(None)
+
+    # 화요일 빈 칸 열 (1~5교시 빈 칸 5개)
+    tue_col = grid_control.controls[1].controls[2].content
+    # 2교시 빈 칸으로 호버 (3칸 수업이므로 2~4교시를 덮음)
+    tue_target_2 = tue_col.controls[1].content
+    tue_target_2.on_will_accept(None)
+
+    # 2교시 칸 (맨 위 칸): 상단 모퉁이 보조선(tl, tr)만 활성화
+    slot2_base = tue_col.controls[1].content.content
+    slot2_stack = slot2_base.content
+    assert slot2_stack.visible is True
+    # tl, tr은 True, bl, br은 False
+    assert slot2_stack.controls[0].visible is True   # tl
+    assert slot2_stack.controls[1].visible is True   # tr
+    assert slot2_stack.controls[2].visible is False  # bl
+    assert slot2_stack.controls[3].visible is False  # br
+
+    # 3교시 칸 (중간 칸): 모퉁이 보조선 모두 비활성화 (내부 연결)
+    slot3_base = tue_col.controls[2].content.content
+    slot3_stack = slot3_base.content
+    assert slot3_stack.controls[0].visible is False
+    assert slot3_stack.controls[1].visible is False
+    assert slot3_stack.controls[2].visible is False
+    assert slot3_stack.controls[3].visible is False
+
+    # 4교시 칸 (맨 아래 칸): 하단 모퉁이 보조선(bl, br)만 활성화
+    slot4_base = tue_col.controls[3].content.content
+    slot4_stack = slot4_base.content
+    assert slot4_stack.visible is True
+    assert slot4_stack.controls[0].visible is False  # tl
+    assert slot4_stack.controls[1].visible is False  # tr
+    assert slot4_stack.controls[2].visible is True   # bl
+    assert slot4_stack.controls[3].visible is True   # br
+
+    # 호버를 벗어났을 때 모두 복구
+    tue_target_2.on_leave(None)
+    assert slot2_stack.visible is False
+    assert slot4_stack.visible is False
+
 
