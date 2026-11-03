@@ -259,11 +259,11 @@ class _SlotHelper:
         for arc in (self.tl, self.tr, self.bl, self.br):
             arc.visible = False
 
-        self.guide_stack = ft.Stack([self.tl, self.tr, self.bl, self.br], expand=True, visible=False)
+        self.guide_stack = ft.Stack([self.tl, self.tr, self.bl, self.br], fit=ft.StackFit.EXPAND, expand=True, visible=False)
         if base.content is None:
             base.content = self.guide_stack
         else:
-            base.content = ft.Stack([base.content, self.guide_stack], expand=True)
+            base.content = ft.Stack([base.content, self.guide_stack], fit=ft.StackFit.EXPAND, expand=True)
 
     def set_active(self, active: bool, is_first: bool = False, is_last: bool = False, arc_color: str = "#000000") -> None:
         if not active:
@@ -283,9 +283,8 @@ class _SlotHelper:
 
         self.guide_stack.visible = True
 
-        # n칸 전체 슬롯의 모퉁이 보조선 및 테두리 활성화
+        # n칸 전체 슬롯의 모퉁이 보조선 및 테두리 활성화 (모퉁이 아크와 어울리는 부드러운 안착 라인)
         side = ft.BorderSide(2.2, arc_color)
-        border_side = ft.BorderSide(1.2, ft.Colors.with_opacity(0.38, d.INK))
 
         self.tl.border = ft.Border(top=side, left=side)
         self.tr.border = ft.Border(top=side, right=side)
@@ -297,15 +296,13 @@ class _SlotHelper:
         self.bl.visible = is_last
         self.br.visible = is_last
 
-        # 테두리: 맨 위 칸은 상단/좌우, 맨 아래 칸은 하단/좌우, 중간 칸은 좌우만 켜서 한 덩어리로 연결
-        top_s = border_side if is_first else None
-        bottom_s = border_side if is_last else None
-        self.base.border = ft.Border(top=top_s, bottom=bottom_s, left=border_side, right=border_side)
+        # 테두리는 균일한(Uniform) 1.4px 보더로 설정하여 Flutter의 BorderRadius와의 렌더링 충돌 방지
+        self.base.border = ft.Border.all(1.4, arc_color)
 
-        tl_r = RADIUS if is_first else 0
-        tr_r = RADIUS if is_first else 0
-        bl_r = RADIUS if is_last else 0
-        br_r = RADIUS if is_last else 0
+        tl_r = RADIUS if is_first else 3
+        tr_r = RADIUS if is_first else 3
+        bl_r = RADIUS if is_last else 3
+        br_r = RADIUS if is_last else 3
         self.base.border_radius = ft.BorderRadius.only(
             top_left=tl_r, top_right=tr_r, bottom_left=bl_r, bottom_right=br_r
         )
@@ -888,6 +885,8 @@ def _handles(
             pass
 
         # 2. 모퉁이 표시선 4개도 수업 카드의 4개 꼭짓점을 1:1로 실시간 추적!
+        for ctrl in corner_containers.values():
+            ctrl.animate_position = None
         update_corners_position(cur_top, cur_h, cur_l, cur_r)
 
     def finish(top_edge: bool | None, left_edge: bool | None) -> None:
@@ -933,6 +932,8 @@ def _handles(
                 holder.update()
             except Exception:
                 pass
+            for ctrl in corner_containers.values():
+                ctrl.animate_position = ft.Animation(170, ft.AnimationCurve.EASE_OUT_CUBIC)
             update_corners_position(top, height, 0.0, 0.0)
             return
 
@@ -947,6 +948,8 @@ def _handles(
             holder.update()
         except Exception:
             pass
+        for ctrl in corner_containers.values():
+            ctrl.animate_position = ft.Animation(170, ft.AnimationCurve.EASE_OUT_CUBIC)
         update_corners_position(target_top, target_h, target_l, target_r)
 
         # 데이터 업데이트 처리 (컨트롤러 내부에서 self.render()가 불려 전체 그리드가 갱신됨)

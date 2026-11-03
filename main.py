@@ -44,6 +44,7 @@ def main(page: ft.Page) -> None:
     page.theme_mode = ft.ThemeMode.LIGHT  # DESIGN.md는 흰 캔버스 기준의 라이트 전용 시스템
     page.bgcolor = d.CANVAS  # 실제 배경색은 render()에서 설정값에 맞춰 바꾼다 (F9)
     page.padding = ft.Padding.symmetric(horizontal=d.SPACE_XS)  # 스마트폰 양옆 여백을 슬림하게 최적화 (16px -> 8px)
+    # v1.1: 크기 조절 모퉁이 추적 및 연속 교시 스마트 안착 하이라이트 반영
     seed = sample_data if os.getenv("TIMETABLE_SAMPLE") == "1" else None
     controller, warnings = AppController.open(Storage(), seed=seed)
     workspace = controller.workspace
