@@ -48,11 +48,7 @@ RADIUS = d.RADIUS_MD
 FEEDBACK_FALLBACK_WIDTH = 76  # 화면 너비를 모를 때 드래그 카드 너비
 LANDING_SCALE = 1.02  # 놓은 직후 크기 → 1.0으로 내려앉는다 (과한 튕김 없이 부드럽게 안착)
 LANDING_MS = 180
-<<<<<<< HEAD
-HANDLE = 20  # 수정 모드에서 수업 모퉁이를 잡는 터치 영역 크기
-=======
 HANDLE = 40  # 수정 모드에서 수업 모퉁이를 잡는 터치 영역 크기 (잡기 쉽도록 20->40으로 대폭 확대)
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
 HANDLE_PILL = 5  # 모퉁이 보조 표시(작은 점) 크기
 
 KeyHandler = Callable[[str], None]
@@ -117,7 +113,6 @@ def build_grid(
             cell_width = None
     cell_height = calc_cell_height(available_height, settings, cell_width=cell_width)
     ctx = _Ctx(
-        timetable=timetable,
         on_click=on_cell_click,
         on_long_press=on_cell_long_press,
         drag_mode=drag_mode,
@@ -129,11 +124,8 @@ def build_grid(
         on_resize_block=on_resize_block,
         on_extend_block=on_extend_block,
         on_drag_change=on_drag_change,
-<<<<<<< HEAD
-=======
         timetable=timetable,
         settings=settings,
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
     )
 
     if has_lunch(settings):
@@ -220,7 +212,6 @@ class _Ctx:
     """칸을 그릴 때 공통으로 쓰는 핸들러·상태 묶음."""
 
     def __init__(self, **kwargs) -> None:
-        self.timetable: Timetable | None = kwargs.get("timetable")
         self.on_click: KeyHandler | None = kwargs["on_click"]
         self.on_long_press: KeyHandler | None = kwargs["on_long_press"]
         self.drag_mode: bool = kwargs["drag_mode"]
@@ -234,16 +225,6 @@ class _Ctx:
         self.on_drag_change: Callable[[bool, str | None], None] | None = kwargs.get("on_drag_change")
         self.active_drag_key: str | None = None
         self.last_drag_key: str | None = None
-<<<<<<< HEAD
-        self.dragging_span: int = 1
-        self.dragging_cell: Cell | None = None
-        self.active_day_clear: Callable[[], None] | None = None
-
-    def clear_guide(self) -> None:
-        if self.active_day_clear:
-            self.active_day_clear()
-            self.active_day_clear = None
-=======
         self.active_drag_span: int = 1
         self.last_hover_key: str | None = None
         self.timetable: Timetable | None = kwargs.get("timetable")
@@ -288,210 +269,19 @@ class _Ctx:
                 fn(False, True, True)
         self.current_highlight_keys.clear()
         self.last_hover_key = None
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
 
 
 def span_height(span: int, cell_height: float = CELL_HEIGHT) -> float:
     """교시 span개를 이어 붙인 높이 (사이 틈 포함)."""
     return span * cell_height + (span - 1) * GAP
-<<<<<<< HEAD
-
-
-def _corner_arc(corner: str, arc_color: str) -> ft.Container:
-    """셀 굴곡(RADIUS)을 감싸는 L자 곡선 아크 라인."""
-    is_top = 'top' in corner
-    is_left = 'left' in corner
-    border_kwargs: dict[str, ft.BorderSide] = {}
-    radius_kwargs: dict[str, float] = {}
-
-    if is_top:
-        border_kwargs["top"] = ft.BorderSide(2.2, arc_color)
-    else:
-        border_kwargs["bottom"] = ft.BorderSide(2.2, arc_color)
-
-    if is_left:
-        border_kwargs["left"] = ft.BorderSide(2.2, arc_color)
-        if is_top:
-            radius_kwargs["top_left"] = RADIUS
-        else:
-            radius_kwargs["bottom_left"] = RADIUS
-    else:
-        border_kwargs["right"] = ft.BorderSide(2.2, arc_color)
-        if is_top:
-            radius_kwargs["top_right"] = RADIUS
-        else:
-            radius_kwargs["bottom_right"] = RADIUS
-
-    pos: dict[str, float] = {}
-    if is_top:
-        pos["top"] = 3
-    else:
-        pos["bottom"] = 3
-    if is_left:
-        pos["left"] = 3
-    else:
-        pos["right"] = 3
-
-    return ft.Container(
-        width=13,
-        height=13,
-        border=ft.Border(**border_kwargs),
-        border_radius=ft.BorderRadius.only(**radius_kwargs),
-        bgcolor=ft.Colors.TRANSPARENT,
-        **pos,
-    )
-
-
-class _SlotHelper:
-    """n칸 연속 수업 드래그 시 목표 슬롯 전체의 외곽 테두리와 4개 모퉁이 보조선을 관리."""
-
-    def __init__(self, base: ft.Container, is_empty: bool):
-        self.base = base
-        self.is_empty = is_empty
-        self.orig_border = base.border
-        self.orig_bgcolor = base.bgcolor
-        self.orig_shadow = base.shadow
-        self.orig_radius = base.border_radius
-
-        self.tl = _corner_arc("top_left", "#000000")
-        self.tr = _corner_arc("top_right", "#000000")
-        self.bl = _corner_arc("bottom_left", "#000000")
-        self.br = _corner_arc("bottom_right", "#000000")
-        for arc in (self.tl, self.tr, self.bl, self.br):
-            arc.visible = False
-
-        self.guide_stack = ft.Stack([self.tl, self.tr, self.bl, self.br], fit=ft.StackFit.EXPAND, expand=True, visible=False)
-        if base.content is None:
-            base.content = self.guide_stack
-        else:
-            base.content = ft.Stack([base.content, self.guide_stack], fit=ft.StackFit.EXPAND, expand=True)
-
-    def set_active(self, active: bool, is_first: bool = False, is_last: bool = False, arc_color: str = "#000000") -> None:
-        if not active:
-            self.guide_stack.visible = False
-            for arc in (self.tl, self.tr, self.bl, self.br):
-                arc.visible = False
-            self.base.border = self.orig_border
-            self.base.bgcolor = self.orig_bgcolor
-            self.base.shadow = self.orig_shadow
-            self.base.border_radius = self.orig_radius
-            try:
-                self.guide_stack.update()
-                self.base.update()
-            except Exception:
-                pass
-            return
-
-        self.guide_stack.visible = True
-
-        # n칸 전체 슬롯의 모퉁이 보조선 및 테두리 활성화 (모퉁이 아크와 어울리는 부드러운 안착 라인)
-        side = ft.BorderSide(2.2, arc_color)
-
-        self.tl.border = ft.Border(top=side, left=side)
-        self.tr.border = ft.Border(top=side, right=side)
-        self.bl.border = ft.Border(bottom=side, left=side)
-        self.br.border = ft.Border(bottom=side, right=side)
-
-        self.tl.visible = is_first
-        self.tr.visible = is_first
-        self.bl.visible = is_last
-        self.br.visible = is_last
-
-        # 테두리는 균일한(Uniform) 1.4px 보더로 설정하여 Flutter의 BorderRadius와의 렌더링 충돌 방지
-        self.base.border = ft.Border.all(1.4, arc_color)
-
-        tl_r = RADIUS if is_first else 3
-        tr_r = RADIUS if is_first else 3
-        bl_r = RADIUS if is_last else 3
-        br_r = RADIUS if is_last else 3
-        self.base.border_radius = ft.BorderRadius.only(
-            top_left=tl_r, top_right=tr_r, bottom_left=bl_r, bottom_right=br_r
-        )
-
-        if self.is_empty:
-            self.base.bgcolor = ft.Colors.with_opacity(0.3, "#FFFFFF")
-        self.base.shadow = ft.BoxShadow(
-            blur_radius=8,
-            spread_radius=0,
-            color="#14000000",
-            offset=ft.Offset(0, 2),
-        )
-        try:
-            self.guide_stack.update()
-            self.base.update()
-        except Exception:
-            pass
-=======
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
 
 
 def _day_column(blocks: list[Block], first: int, last: int, ctx: _Ctx) -> ft.Control:
     """한 요일의 세로 칸. 수업 묶음을 교시 위치에 겹쳐 놓는다."""
     children: list[ft.Control] = []
-    day = blocks[0].day if blocks else 0
-    slot_helpers: dict[int, _SlotHelper] = {}
-
-    def on_hover_period(period: int) -> None:
-        span = ctx.dragging_span or 1
-        cell = ctx.dragging_cell
-        arc_color = ft.Colors.with_opacity(0.48, text_color(cell.color if cell else "blue"))
-
-        candidate_starts = [period - offset for offset in range(span)]
-        src_keys = set()
-        if ctx.active_drag_key or ctx.last_drag_key:
-            drag_k = ctx.active_drag_key or ctx.last_drag_key
-            src_keys = {drag_k}
-
-        tt_cells = ctx.timetable.cells if (ctx.timetable and hasattr(ctx.timetable, "cells")) else {}
-        chosen_start = None
-        for c_start in candidate_starts:
-            if c_start < first or c_start + span - 1 > last:
-                continue
-            c_keys = [cell_key(day, p) for p in range(c_start, c_start + span)]
-            if not any(k in tt_cells and k not in src_keys for k in c_keys):
-                chosen_start = c_start
-                break
-        if chosen_start is None:
-            chosen_start = max(first, min(last - span + 1, period))
-
-        target_periods = list(range(chosen_start, chosen_start + span))
-
-        if ctx.active_day_clear and ctx.active_day_clear != clear_all_slots:
-            ctx.active_day_clear()
-        ctx.active_day_clear = clear_all_slots
-
-        # n칸 전체 영역의 슬롯들에 안착 가이드(외곽 4개 모퉁이 보조선 및 테두리) 동시 적용
-        for p, helper in slot_helpers.items():
-            if p in target_periods:
-                is_f = (p == target_periods[0])
-                is_l = (p == target_periods[-1])
-                helper.set_active(True, is_first=is_f, is_last=is_l, arc_color=arc_color)
-            else:
-                helper.set_active(False)
-
-    def clear_all_slots() -> None:
-        for helper in slot_helpers.values():
-            helper.set_active(False)
-        if ctx.active_day_clear == clear_all_slots:
-            ctx.active_day_clear = None
-
     for block in blocks:
         top = (block.start - first) * (ctx.cell_height + GAP)
-<<<<<<< HEAD
-        block_ctrls, helper = _block(
-            block,
-            top,
-            ctx,
-            on_hover=on_hover_period,
-            on_leave_hover=clear_all_slots,
-        )
-        children.extend(block_ctrls)
-        for p in range(block.start, block.end + 1):
-            slot_helpers[p] = helper
-
-=======
         children.extend(_block(block, top, ctx))
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
     return ft.Container(
         ft.Stack(children, clip_behavior=ft.ClipBehavior.NONE),
         expand=1,
@@ -700,31 +490,18 @@ def _card_with_handles(cell: Cell, height: float, width: float, shadow: ft.BoxSh
         border_kwargs: dict[str, ft.BorderSide] = {}
         radius_kwargs: dict[str, float] = {}
         if is_top:
-<<<<<<< HEAD
-            border_kwargs["top"] = ft.BorderSide(2, arc_color)
-        else:
-            border_kwargs["bottom"] = ft.BorderSide(2, arc_color)
-
-        if is_left:
-            border_kwargs["left"] = ft.BorderSide(2, arc_color)
-=======
             border_kwargs["top"] = ft.BorderSide(2.5, arc_color)
         else:
             border_kwargs["bottom"] = ft.BorderSide(2.5, arc_color)
 
         if is_left:
             border_kwargs["left"] = ft.BorderSide(2.5, arc_color)
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
             if is_top:
                 radius_kwargs["top_left"] = RADIUS
             else:
                 radius_kwargs["bottom_left"] = RADIUS
         else:
-<<<<<<< HEAD
-            border_kwargs["right"] = ft.BorderSide(2, arc_color)
-=======
             border_kwargs["right"] = ft.BorderSide(2.5, arc_color)
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
             if is_top:
                 radius_kwargs["top_right"] = RADIUS
             else:
@@ -732,19 +509,6 @@ def _card_with_handles(cell: Cell, height: float, width: float, shadow: ft.BoxSh
 
         pos: dict[str, float] = {}
         if is_top:
-<<<<<<< HEAD
-            pos["top"] = 3
-        else:
-            pos["bottom"] = 3
-        if is_left:
-            pos["left"] = 3
-        else:
-            pos["right"] = 3
-
-        return ft.Container(
-            width=12,
-            height=12,
-=======
             pos["top"] = 4
         else:
             pos["bottom"] = 4
@@ -756,7 +520,6 @@ def _card_with_handles(cell: Cell, height: float, width: float, shadow: ft.BoxSh
         return ft.Container(
             width=22,
             height=22,
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
             border=ft.Border(**border_kwargs),
             border_radius=ft.BorderRadius.only(**radius_kwargs),
             bgcolor=ft.Colors.TRANSPARENT,
@@ -776,17 +539,7 @@ def _card_with_handles(cell: Cell, height: float, width: float, shadow: ft.BoxSh
     )
 
 
-<<<<<<< HEAD
-def _block(
-    block: Block,
-    top: float,
-    ctx: _Ctx,
-    on_hover: Callable[[int], None] | None = None,
-    on_leave_hover: Callable[[], None] | None = None,
-) -> list[ft.Control]:
-=======
 def _block(block: Block, top: float, ctx: _Ctx) -> list[ft.Control]:
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
     """수업 묶음 하나 (+ 수정 모드면 가장자리 손잡이). Stack 안에 놓을 컨트롤들을 돌려준다."""
     cell = block.cell
     key = cell_key(block.day, block.start)
@@ -821,27 +574,6 @@ def _block(block: Block, top: float, ctx: _Ctx) -> list[ft.Control]:
     content: ft.Control = base
     half_gap = GAP / 2.0
     if ctx.drag_mode:
-<<<<<<< HEAD
-        content = _drag_wrap(base, block, key, height, ctx, handles_holder, on_hover, on_leave_hover)
-
-    holder = ft.Container(
-        content,
-        top=top,
-        left=0,
-        right=0,
-        height=height,
-        animate_position=ft.Animation(170, ft.AnimationCurve.EASE_OUT_CUBIC),
-        animate_size=ft.Animation(170, ft.AnimationCurve.EASE_OUT_CUBIC),
-    )
-    helper = _SlotHelper(base, is_empty=(cell is None))
-    if not (ctx.drag_mode and cell is not None):
-        return [holder], helper
-    handles = _handles(holder, block, top, height, ctx)
-    handles_holder.extend(handles)
-    return [holder, *handles], helper
-
-
-=======
         # 셀과 셀 사이 빈 공간(GAP)에서도 가장 가까운 셀로 하이라이트 및 드롭이 연결되도록
         # DragTarget 반응 영역을 상하좌우 half_gap만큼 확장하고, 카드는 margin으로 원위치 정렬한다.
         base.margin = ft.Margin(top=half_gap, bottom=half_gap, left=half_gap, right=half_gap)
@@ -926,7 +658,6 @@ def _guide_corner_arcs(arc_color: str) -> list[ft.Container]:
     ]
 
 
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
 def _drag_wrap(
     base: ft.Container,
     block: Block,
@@ -934,11 +665,6 @@ def _drag_wrap(
     height: float,
     ctx: _Ctx,
     handles_holder: list[ft.Control] | None = None,
-<<<<<<< HEAD
-    on_hover: Callable[[int], None] | None = None,
-    on_leave_hover: Callable[[], None] | None = None,
-=======
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
 ) -> ft.Control:
     """수정 모드: 수업은 끌 수 있고, 모든 칸(빈 칸 포함)은 놓을 자리가 된다."""
     orig_border = base.border
@@ -1046,27 +772,9 @@ def _drag_wrap(
         # 셀 사이 빈 공간에 커서가 있어도 하이라이트가 꺼지지 않고 가장 가까운/최근 셀로 유지
         pass
 
-    def handle_will_accept(e) -> None:
-        if on_hover:
-            on_hover(block.start)
-
-    def handle_move(e) -> None:
-        if on_hover:
-            on_hover(block.start)
-
-    def handle_leave(e) -> None:
-        if on_leave_hover:
-            on_leave_hover()
-
     def handle_accept(e: ft.DragTargetEvent) -> None:
-<<<<<<< HEAD
-        if on_leave_hover:
-            on_leave_hover()
-        ctx.clear_guide()
-=======
         ctx.clear_highlight()
         sub_k = get_sub_key(e)
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         src = ctx.active_drag_key or ctx.last_drag_key
         if not src:
             if hasattr(e, "src_id") and e.src_id and e.control and e.control.page:
@@ -1077,18 +785,11 @@ def _drag_wrap(
             src = e.src.data
         if not src and hasattr(e, "data") and e.data:
             src = e.data
-<<<<<<< HEAD
-        if src and src != key and ctx.on_move_cell:
-            ctx.on_move_cell(src, key)
-        ctx.active_drag_key = None
-        ctx.last_drag_key = None
-=======
         if src and src != sub_k and ctx.on_move_cell:
             ctx.on_move_cell(src, sub_k)
         ctx.active_drag_key = None
         ctx.last_drag_key = None
         ctx.active_drag_span = 1
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
 
     target = ft.DragTarget(
         group="cells",
@@ -1106,12 +807,7 @@ def _drag_wrap(
     def on_drag_start(e) -> None:
         ctx.active_drag_key = key
         ctx.last_drag_key = key
-<<<<<<< HEAD
-        ctx.dragging_span = block.span
-        ctx.dragging_cell = block.cell
-=======
         ctx.active_drag_span = block.span
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         # 원래 자리에 남아있는 모퉁이 보조 선들을 즉시 숨겨 깨끗한 빈 칸만 남김
         if handles_holder:
             for h in handles_holder:
@@ -1125,12 +821,8 @@ def _drag_wrap(
 
     def on_drag_complete(e) -> None:
         ctx.active_drag_key = None
-<<<<<<< HEAD
-        ctx.clear_guide()
-=======
         ctx.active_drag_span = 1
         ctx.clear_highlight()
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         # 드래그가 끝나면 모퉁이 보조 선 복원
         if handles_holder:
             for h in handles_holder:
@@ -1141,8 +833,6 @@ def _drag_wrap(
                     pass
         if ctx.on_drag_change:
             ctx.on_drag_change(False, None)
-<<<<<<< HEAD
-=======
 
     # 수업 카드가 드래그되어 들려있는 동안, 원래 자리를 1교시 기본 크기의 셀들로 나누어 표시
     # (3개짜리 수업이어도 원래 자리가 개별 셀로 나뉘어 다른 셀들과 동일하게 하이라이트 가능)
@@ -1270,7 +960,6 @@ def _drag_wrap(
                 pass
 
         ctx.hover_registry[key] = single_hover_fn
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
 
     target.content = ft.Draggable(
         group="cells",
@@ -1285,18 +974,8 @@ def _drag_wrap(
                 blur_radius=16, spread_radius=1, color="#35000000", offset=ft.Offset(0, 6)
             ),
         ),
-<<<<<<< HEAD
-        # 원래 자리는 수업이 비어있는 은은한 반투명 칸으로 남겨 둔다 (보조선 없음)
-        content_when_dragging=ft.Container(
-            height=height,
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.5, d.HAIRLINE)),
-            border_radius=ft.BorderRadius.all(RADIUS),
-            bgcolor=ft.Colors.with_opacity(0.3, "#FFFFFF"),
-        ),
-=======
         # 원래 자리는 기본 셀 크기들로 나뉘어져 남는다
         content_when_dragging=placeholder,
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         on_drag_start=on_drag_start,
         on_drag_complete=on_drag_complete,
     )
@@ -1306,11 +985,7 @@ def _drag_wrap(
 def _handles(
     holder: ft.Container, block: Block, top: float, height: float, ctx: _Ctx
 ) -> list[ft.Control]:
-<<<<<<< HEAD
-    """수업 모퉁이의 얇고 투명한 곡선 손잡이. 수업 카드가 늘어나고 줄어들 때 4개 꼭짓점을 실시간으로 완벽히 추적."""
-=======
     """수업 모퉁이의 얇고 투명한 곡선 손잡이. 터치 반응 속도를 극대화하고 손을 놓을 때 부드러운 스냅 애니메이션 적용."""
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
     assert block.cell is not None
     arc_color = ft.Colors.with_opacity(0.42, text_color(block.cell.color))
     row_step = ctx.cell_height + GAP
@@ -1318,42 +993,8 @@ def _handles(
     cell_h = ctx.cell_height
     moved_x = [0.0]
     moved_y = [0.0]
-<<<<<<< HEAD
-    corner_containers: dict[str, ft.Container] = {}
-
-    def update_corners_position(c_top: float, c_h: float, c_l: float, c_r: float) -> None:
-        if "top_left" in corner_containers:
-            corner_containers["top_left"].top = c_top
-            corner_containers["top_left"].left = c_l
-            try:
-                corner_containers["top_left"].update()
-            except Exception:
-                pass
-        if "top_right" in corner_containers:
-            corner_containers["top_right"].top = c_top
-            corner_containers["top_right"].right = c_r
-            try:
-                corner_containers["top_right"].update()
-            except Exception:
-                pass
-        if "bottom_left" in corner_containers:
-            corner_containers["bottom_left"].top = c_top + c_h - HANDLE
-            corner_containers["bottom_left"].left = c_l
-            try:
-                corner_containers["bottom_left"].update()
-            except Exception:
-                pass
-        if "bottom_right" in corner_containers:
-            corner_containers["bottom_right"].top = c_top + c_h - HANDLE
-            corner_containers["bottom_right"].right = c_r
-            try:
-                corner_containers["bottom_right"].update()
-            except Exception:
-                pass
-=======
 
     all_handles: list[ft.Container] = []
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
 
     def preview(top_edge: bool | None, left_edge: bool | None) -> None:
         dx, dy = moved_x[0], moved_y[0]
@@ -1371,15 +1012,6 @@ def _handles(
         elif left_edge is False:
             cur_r = min(0.0, -dx)
 
-<<<<<<< HEAD
-        # 1. 수업 카드 본체 크기·위치 즉각 변경
-        holder.animate_position = None
-        holder.animate_size = None
-        holder.top = cur_top
-        holder.height = cur_h
-        holder.left = cur_l
-        holder.right = cur_r
-=======
         # 조절 중에는 손끝을 지연 없이 즉각 따라가도록 애니메이션 해제
         holder.animate_position = None
         holder.animate_size = None
@@ -1388,18 +1020,11 @@ def _handles(
         holder.height = cur_h + GAP
         holder.left = cur_l - half_gap
         holder.right = cur_r - half_gap
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         try:
             holder.update()
         except Exception:
             pass
 
-<<<<<<< HEAD
-        # 2. 모퉁이 표시선 4개도 수업 카드의 4개 꼭짓점을 1:1로 실시간 추적!
-        for ctrl in corner_containers.values():
-            ctrl.animate_position = None
-        update_corners_position(cur_top, cur_h, cur_l, cur_r)
-=======
         # 모퉁이 표시선(핸들)도 늘어나는 수업 카드 모퉁이 위치를 실시간으로 따라가도록 동기화
         if len(all_handles) == 4:
             tl, tr, bl, br = all_handles
@@ -1423,16 +1048,12 @@ def _handles(
                     h.update()
                 except Exception:
                     pass
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
 
     def finish(top_edge: bool | None, left_edge: bool | None) -> None:
         dx, dy = moved_x[0], moved_y[0]
         moved_x[0], moved_y[0] = 0.0, 0.0
 
-<<<<<<< HEAD
-=======
         # 손을 놓았을 때 격자 칸에 스냅될 최종 목표 위치 계산
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         target_top, target_h = top, height
         target_l, target_r = 0.0, 0.0
 
@@ -1465,34 +1086,6 @@ def _handles(
 
         if steps_y == 0 and steps_x == 0:
             # 이동 변화 없음: 원래 자리로 부드럽게 복귀
-<<<<<<< HEAD
-            try:
-                holder.animate_position = ft.Animation(170, ft.AnimationCurve.EASE_OUT_CUBIC)
-                holder.animate_size = ft.Animation(170, ft.AnimationCurve.EASE_OUT_CUBIC)
-                holder.top, holder.height, holder.left, holder.right = top, height, 0, 0
-                holder.update()
-            except Exception:
-                pass
-            for ctrl in corner_containers.values():
-                ctrl.animate_position = ft.Animation(170, ft.AnimationCurve.EASE_OUT_CUBIC)
-            update_corners_position(top, height, 0.0, 0.0)
-            return
-
-        # 손을 놓았을 때 화면상으로 먼저 목표 위치 스냅 애니메이션 적용 (과한 튕김 없이 부드럽게 감속)
-        try:
-            holder.animate_position = ft.Animation(170, ft.AnimationCurve.EASE_OUT_CUBIC)
-            holder.animate_size = ft.Animation(170, ft.AnimationCurve.EASE_OUT_CUBIC)
-            holder.top = target_top
-            holder.height = target_h
-            holder.left = target_l
-            holder.right = target_r
-            holder.update()
-        except Exception:
-            pass
-        for ctrl in corner_containers.values():
-            ctrl.animate_position = ft.Animation(170, ft.AnimationCurve.EASE_OUT_CUBIC)
-        update_corners_position(target_top, target_h, target_l, target_r)
-=======
             half_gap = GAP / 2.0
             try:
                 holder.animate_position = ft.Animation(170, ft.AnimationCurve.EASE_OUT_CUBIC)
@@ -1548,7 +1141,6 @@ def _handles(
                     h.update()
                 except Exception:
                     pass
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
 
         # 데이터 업데이트 처리 (컨트롤러 내부에서 self.render()가 불려 전체 그리드가 갱신됨)
         if top_edge is not None and steps_y and ctx.on_resize_block:
@@ -1561,11 +1153,7 @@ def _handles(
 
         # 주의: 컨트롤러 호출 후에는 holder가 이미 이전 페이지 트리의 객체이므로 holder.update()를 부르지 않는다!
 
-<<<<<<< HEAD
-    def corner_widget(corner: str) -> ft.Control:
-=======
     def corner_widget(corner: str) -> ft.Container:
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         is_top = 'top' in corner
         is_left = 'left' in corner
 
@@ -1585,44 +1173,26 @@ def _handles(
         border_kwargs: dict[str, ft.BorderSide] = {}
         radius_kwargs: dict[str, float] = {}
         if is_top:
-<<<<<<< HEAD
-            border_kwargs["top"] = ft.BorderSide(2, arc_color)
-        else:
-            border_kwargs["bottom"] = ft.BorderSide(2, arc_color)
-
-        if is_left:
-            border_kwargs["left"] = ft.BorderSide(2, arc_color)
-=======
             border_kwargs["top"] = ft.BorderSide(2.5, arc_color)
         else:
             border_kwargs["bottom"] = ft.BorderSide(2.5, arc_color)
 
         if is_left:
             border_kwargs["left"] = ft.BorderSide(2.5, arc_color)
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
             if is_top:
                 radius_kwargs["top_left"] = RADIUS
             else:
                 radius_kwargs["bottom_left"] = RADIUS
         else:
-<<<<<<< HEAD
-            border_kwargs["right"] = ft.BorderSide(2, arc_color)
-=======
             border_kwargs["right"] = ft.BorderSide(2.5, arc_color)
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
             if is_top:
                 radius_kwargs["top_right"] = RADIUS
             else:
                 radius_kwargs["bottom_right"] = RADIUS
 
         curved_arc = ft.Container(
-<<<<<<< HEAD
-            width=12,
-            height=12,
-=======
             width=22,
             height=22,
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
             border=ft.Border(**border_kwargs),
             border_radius=ft.BorderRadius.only(**radius_kwargs),
             bgcolor=ft.Colors.TRANSPARENT,
@@ -1636,17 +1206,10 @@ def _handles(
         )
 
         pad = ft.Padding(
-<<<<<<< HEAD
-            left=3 if is_left else 0,
-            right=3 if not is_left else 0,
-            top=3 if is_top else 0,
-            bottom=3 if not is_top else 0,
-=======
             left=4 if is_left else 0,
             right=4 if not is_left else 0,
             top=4 if is_top else 0,
             bottom=4 if not is_top else 0,
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         )
 
         detector = ft.GestureDetector(
@@ -1660,32 +1223,6 @@ def _handles(
             on_pan_update=on_pan_update,
             on_pan_end=on_pan_end,
         )
-<<<<<<< HEAD
-
-        pos: dict[str, float] = {}
-        if is_top:
-            pos["top"] = top
-        else:
-            pos["top"] = top + height - HANDLE
-
-        if is_left:
-            pos["left"] = 0
-        else:
-            pos["right"] = 0
-
-        pos["width"] = HANDLE
-        pos["height"] = HANDLE
-        ctrl = ft.Container(detector, **pos)
-        corner_containers[corner] = ctrl
-        return ctrl
-
-    return [
-        corner_widget("top_left"),
-        corner_widget("top_right"),
-        corner_widget("bottom_left"),
-        corner_widget("bottom_right"),
-    ]
-=======
 
         pos: dict[str, float] = {}
         if is_top:
@@ -1708,4 +1245,3 @@ def _handles(
     br = corner_widget("bottom_right")
     all_handles.extend([tl, tr, bl, br])
     return all_handles
->>>>>>> 330b903 (Clean up unused legacy files and add docs)

@@ -25,10 +25,6 @@ def main(page: ft.Page) -> None:
     page.theme_mode = ft.ThemeMode.LIGHT  # DESIGN.md는 흰 캔버스 기준의 라이트 전용 시스템
     page.bgcolor = d.CANVAS  # 실제 배경색은 render()에서 설정값에 맞춰 바꾼다 (F9)
     page.padding = ft.Padding.symmetric(horizontal=d.SPACE_XS)  # 스마트폰 양옆 여백을 슬림하게 최적화 (16px -> 8px)
-<<<<<<< HEAD
-    # v1.1: 크기 조절 모퉁이 추적 및 연속 교시 스마트 안착 하이라이트 반영
-=======
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
     seed = sample_data if os.getenv("TIMETABLE_SAMPLE") == "1" else None
     controller, warnings = AppController.open(Storage(), seed=seed)
     workspace = controller.workspace
@@ -110,14 +106,11 @@ def main(page: ft.Page) -> None:
             offset=ft.Offset(0, 4),
         )
         delete_icon.size = 22
-<<<<<<< HEAD
-=======
         delete_target.visible = False
         try:
             delete_target.update()
         except Exception:
             pass
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         actions.delete_dragged_cell(src)
 
     delete_target = ft.Container(
@@ -128,13 +121,6 @@ def main(page: ft.Page) -> None:
             on_leave=on_delete_leave,
             on_accept=on_delete_accept,
         ),
-<<<<<<< HEAD
-        top=4,
-        left=12,
-        right=12,
-        height=52,
-    )
-=======
         top=6,
         left=12,
         right=12,
@@ -142,21 +128,13 @@ def main(page: ft.Page) -> None:
         visible=False,
     )
     page.overlay.append(delete_target)
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
 
     body = ft.Container(
         expand=True,
         padding=ft.Padding.only(top=d.SPACE_XS, bottom=d.SPACE_XS),
         border=ft.Border.only(top=ft.BorderSide(1, d.HAIRLINE)),  # 앱 바와 본문 사이 실선
-<<<<<<< HEAD
-        content=ft.Stack(
-            [grid_container],
-            expand=True,
-        ),
-=======
         content=grid_container,
         clip_behavior=ft.ClipBehavior.HARD_EDGE,  # GPU 렌더링 레이어 분리 (RepaintBoundary 효과)
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
     )
 
     last_width: list[float | None] = [None]
@@ -172,11 +150,8 @@ def main(page: ft.Page) -> None:
         editable = not controller.read_only
         avail_w = (page.width - 2 * d.SPACE_XS) if page.width else None
         avail_h = (page.height - 110) if page.height else None
-<<<<<<< HEAD
-=======
         last_width[0] = page.width
         last_height[0] = page.height
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         grid_container.content = build_grid(
             workspace.active,
             settings,
@@ -193,19 +168,6 @@ def main(page: ft.Page) -> None:
             on_extend_block=actions.extend_block if editable else None,
             on_drag_change=actions.on_drag_change if editable else None,
         )
-<<<<<<< HEAD
-        # 수정 모드일 때 상단에 삭제 영역을 플로팅 오버레이로 배치
-        show_delete = editable and actions.drag_mode
-        stack_controls: list[ft.Control] = [grid_container]
-        if show_delete:
-            stack_controls.append(delete_target)
-        body.content.controls = stack_controls
-        page.update()
-
-    def on_drag_listener(dragging: bool, key: str | None) -> None:
-        """드래그 시작/종료 시 전체 render 대신 삭제 바의 입체 스타일만 갱신 (그리드 보존)."""
-        if dragging:
-=======
         # 수정 모드에서 수업을 실제로 드래그할 때만 상단 바 자리에 삭제 영역 표시
         delete_target.visible = bool(editable and actions.drag_mode and actions.dragging_cell_key)
         page.update()
@@ -216,7 +178,6 @@ def main(page: ft.Page) -> None:
         show = bool(editable and actions.drag_mode and dragging)
         delete_target.visible = show
         if show:
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
             delete_zone_container.border = ft.Border.all(1.2, ft.Colors.RED_300)
             delete_zone_container.shadow = ft.BoxShadow(
                 blur_radius=16,
@@ -233,20 +194,11 @@ def main(page: ft.Page) -> None:
                 offset=ft.Offset(0, 4),
             )
         try:
-<<<<<<< HEAD
-            delete_zone_container.update()
-        except Exception:
-            pass
-
-    sync = build_sync(page, controller, render)
-    actions = Actions(page, controller, render, picker=ft.FilePicker(), sync=sync)
-=======
             delete_target.update()
         except Exception:
             pass
 
     actions = Actions(page, controller, render, picker=ft.FilePicker())
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
     actions.on_drag_listener = on_drag_listener
     page.appbar = ft.AppBar(
         bgcolor=background_hex(controller.workspace.data.settings.background),

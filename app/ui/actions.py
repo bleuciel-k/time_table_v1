@@ -63,11 +63,8 @@ class Actions:
     def toggle_drag_mode(self) -> None:
         self.drag_mode = not self.drag_mode
         self.dragging_cell_key = None
-<<<<<<< HEAD
-=======
         if self.on_drag_listener:
             self.on_drag_listener(False, None)
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         self._hand_icon.color = d.LINK if self.drag_mode else d.INK
         self.hand_btn.bgcolor = d.SURFACE_STRONG if self.drag_mode else None
         self.hand_btn.scale = 1.15 if self.drag_mode else 1.0
@@ -93,34 +90,23 @@ class Actions:
     def delete_dragged_cell(self, key: str | None = None) -> None:
         target_key = key or self.dragging_cell_key
         self.dragging_cell_key = None
-<<<<<<< HEAD
-=======
         if self.on_drag_listener:
             self.on_drag_listener(False, None)
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         if target_key:
             self.show_result(self.controller.clear_cell(target_key))
 
     def move_cell(self, src_key: str, dest_key: str) -> None:
         """수업을 다른 칸으로 옮기거나 맞바꾼다. 연속 수업(span >= 2) 이동 시 스마트 슬롯 매칭 적용."""
-<<<<<<< HEAD
-=======
         self.dragging_cell_key = None
         if self.on_drag_listener:
             self.on_drag_listener(False, None)
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
         resolved_dest = dest_key
         try:
             tt = self.controller.workspace.active
             src_keys = self.controller.workspace.block_keys(src_key)
             span = len(src_keys)
-<<<<<<< HEAD
-            # 빈 칸으로 이동하는 2칸 이상의 연속 수업인 경우
-            if span > 1 and dest_key not in tt.cells:
-=======
             # 빈 칸으로 이동하거나 원래 자기 슬롯 내에서 시프트 이동하는 2칸 이상의 연속 수업인 경우
             if span > 1 and (dest_key not in tt.cells or dest_key in src_keys):
->>>>>>> 330b903 (Clean up unused legacy files and add docs)
                 dest_day, dest_start = parse_cell_key(dest_key)
                 settings = self.controller.workspace.data.settings
                 # 사용자가 카드의 1번째, 2번째, ... n번째 칸 중 어디를 잡고 놓았더라도
