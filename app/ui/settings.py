@@ -21,7 +21,7 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
     draft: Settings = replace(controller.workspace.data.settings)
     days_row = ft.Row(spacing=d.SPACE_XS)
     background_row = ft.Row(wrap=True, spacing=d.SPACE_XS, run_spacing=d.SPACE_XS)
-    background_label = t.label("배경색")
+    background_label = t.label("테마 배경색")
     periods_row = ft.Row(wrap=True, spacing=d.SPACE_XS, run_spacing=d.SPACE_XS)
     start_time = t.text_field("1교시 시작", value=draft.start_time, helper="HH:MM")
     class_minutes = t.text_field("수업 시간(분)", value=str(draft.class_minutes))
@@ -38,9 +38,15 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
         spacing=d.SPACE_SM,
     )
 
+    sheet: ft.BottomSheet | None = None
+
     def close() -> None:
-        sheet.open = False
-        page.update()
+        if sheet is not None:
+            sheet.open = False
+        try:
+            page.update()
+        except Exception:
+            pass
 
     def choose_days(value: int) -> None:
         nonlocal draft
@@ -118,7 +124,7 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
 
     def sync() -> None:
         background_row.controls = [background_swatch(key) for key in BACKGROUNDS]
-        background_label.value = f"배경색 · {BACKGROUND_LABELS[draft.background]}"
+        background_label.value = f"테마 배경색 · {BACKGROUND_LABELS[draft.background]}"
         days_row.controls = [
             t.chip(f"{value}일", draft.days == value, lambda v=value: choose_days(v))
             for value in DAYS_CHOICES
@@ -143,7 +149,16 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
             if times
             else "마지막 교시 앞에 와야 표시됩니다."
         )
-        page.update()
+        if sheet is not None:
+            try:
+                sheet.update()
+                return
+            except Exception:
+                pass
+        try:
+            page.update()
+        except Exception:
+            pass
 
     sheet = t.sheet(
         "설정",

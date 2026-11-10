@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
   "flet==1.0.0",
   "pillow==12.2.0",  # R2: pypi.flet.dev의 Android 휠이 12.2.0까지만 제공됨
-  "httpx==0.28.1",
+  "qrcode>=8.0",
 ]
 
 [dependency-groups]
@@ -15,8 +15,15 @@ dev = ["pytest"]
 
 [tool.flet]
 org = "com.seonho"
-product = "시간표"
+product = "대학 시간표"
 company = "seonho"
+
+[tool.flet.deep_linking]
+scheme = "timetable"
+host = "import"
+
+[tool.flet.flutter.pubspec.dependency_overrides]
+jni = "1.1.2"
 
 [tool.flet.app]
 path = "."
@@ -24,8 +31,9 @@ path = "."
 exclude = [
   ".git", ".venv", ".flet", ".data", ".pytest_cache", ".claude", ".specify", ".idea",
   "build", "tests", "scripts",
-  "timetable_spec.md", "DESIGN.md", "config.example.py",
+  "timetable_spec.md", "DESIGN.md",
   "assets/Timetable_icon.png",
+  "*.jks", "*.keystore",
 ]
 
 [tool.pytest.ini_options]

@@ -7,3 +7,9 @@ build/
 config.py
 .idea/
 node_modules/
+*.jks
+*.keystore
+key.properties
+.DS_Store
+.claude/
+.specify/

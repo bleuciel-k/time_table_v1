@@ -1,0 +1,5 @@
+# 시간표 앱 의존성 (timetable_spec.md P1, R2, R3 준수)
+flet==1.0.0
+pillow==12.2.0
+qrcode>=8.0
+pytest>=8.0.0

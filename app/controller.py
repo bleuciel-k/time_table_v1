@@ -21,13 +21,9 @@ from app.model import (
 )
 from app.palette import DEFAULT_COLOR
 from app.storage import Storage, StorageError
-from app.sync import Auth, CloudStore, SyncError, SyncWorker, merge, to_cloud
 
 READ_ONLY_MESSAGE = "앱보다 새 버전의 데이터라 편집할 수 없습니다."
 UNDO_EXPIRED_MESSAGE = "되돌릴 수 있는 시간이 지났습니다."
-SYNC_ATTEMPTS = 3  # 다른 기기가 먼저 써서(412) 다시 시도하는 최대 횟수
-# 기다리면 풀릴 수 있는 오류만 자동으로 다시 시도한다
-RETRYABLE = {"network", "conflict", "unknown", "too_many_attempts"}
 
 
 @dataclass(frozen=True)
@@ -218,33 +214,18 @@ class AppController:
     def undo(self) -> ActionResult:
         return self._mutate(self.workspace.undo, "되돌렸어요.", UNDO_EXPIRED_MESSAGE)
 
-    # ---- 동기화 (F7)
+    # ---- 시간표 가져오기 (QR 코드 / 공유 코드)
 
-    def sync(self, cloud: CloudStore, initial: bool = False) -> bool:
-        """원격과 병합해 로컬에 저장하고, 원격과 다르면 올린다. 로컬이 바뀌었으면 True.
+    def import_timetable(self, timetable: Timetable, switch_to: bool = True) -> ActionResult:
+        """QR 코드나 공유 코드로 전달받은 시간표를 새 시간표로 등록한다."""
+        def action():
+            new_tt = self.workspace.add_timetable(timetable.name)
+            new_tt.cells = dict(timetable.cells)
+            if switch_to:
+                self.workspace.switch_timetable(new_tt.id)
+            return True
 
-        네트워크 요청은 잠금 밖에서 하고, 병합은 잠금 안에서 그 시점의 로컬로 한다.
-        실패는 SyncError로 올린다.
-        """
-        if self.read_only:
-            return False
-        changed = False
-        for _ in range(SYNC_ATTEMPTS):
-            remote, etag = cloud.fetch()
-            with self.lock:
-                revision = self.revision
-                merged = merge(self.workspace.data, remote, initial)
-                if to_cloud(merged) != to_cloud(self.workspace.data):
-                    self.workspace.replace_data(merged)
-                    self._persist()  # 실패해도 다음 변경 때 다시 저장한다 (spec 2.7)
-                    changed = True
-                document = to_cloud(self.workspace.data)
-            if (remote is not None and document == to_cloud(remote)) or cloud.push(document, etag):
-                with self.lock:
-                    if self.revision == revision:
-                        self.dirty = False
-                return changed
-        raise SyncError("conflict", f"{SYNC_ATTEMPTS}회 연속 412")
+        return self._mutate(action, f"'{timetable.name}' 시간표를 가져왔습니다.")
 
     # ---- 공통: 조작 → 자동 저장 (F5)
 
@@ -278,107 +259,3 @@ class AppController:
         except (StorageError, OSError) as ex:
             return f"저장 실패: {ex}"
         return None
-
-
-@dataclass(frozen=True)
-class SyncStatus:
-    signed_in: bool
-    email: str = ""
-    running: bool = False
-    last_synced_at: datetime | None = None
-    error: SyncError | None = None
-
-
-class SyncManager:
-    """로그인 상태와 백그라운드 동기화를 묶는다 (F7, spec 3.3).
-
-    `on_update(changed)`는 동기화 스레드에서 불린다. changed=True면 로컬 데이터가 바뀐 것.
-    """
-
-    def __init__(
-        self,
-        controller: AppController,
-        auth: Auth,
-        cloud: CloudStore,
-        on_update: Callable[[bool], None] | None = None,
-        clock: Clock = utc_now,
-        worker_factory: Callable[[Callable[[], bool]], SyncWorker] = SyncWorker,
-    ) -> None:
-        self.controller = controller
-        self.auth = auth
-        self.cloud = cloud
-        self.on_update = on_update
-        self._clock = clock
-        self._initial = False  # 로그인 직후 첫 동기화 (spec 3.3)
-        self._running = False
-        self._last_synced_at: datetime | None = None
-        self._error: SyncError | None = None
-        self._worker = worker_factory(self._job)
-        controller.after_change = self.request
-
-    @property
-    def status(self) -> SyncStatus:
-        session = self.auth.session
-        return SyncStatus(
-            signed_in=session is not None,
-            email=session.email if session else "",
-            running=self._running,
-            last_synced_at=self._last_synced_at,
-            error=self._error,
-        )
-
-    def start(self) -> None:
-        self._worker.start()
-        self.request()  # 앱 시작 시 다운로드
-
-    def stop(self) -> None:
-        self._worker.stop(timeout=1)
-
-    def request(self) -> None:
-        if self.auth.signed_in and not self.controller.read_only:
-            self._worker.request()
-
-    def sign_in(self, email: str, password: str) -> None:
-        """실패하면 AuthError. 성공하면 병합을 예약한다."""
-        self.auth.sign_in(email, password)
-        self._initial = True
-        self._error = None
-        self._last_synced_at = None
-        self.request()
-
-    def sign_out(self) -> None:
-        """토큰만 지운다. 로컬 데이터는 그대로 둔다 (F7)."""
-        self.auth.sign_out()
-        self._error = None
-        self._last_synced_at = None
-
-    def delete_account(self) -> None:
-        """클라우드 데이터와 계정을 삭제한다. 로컬 데이터는 유지한다 (P3, P7)."""
-        if not self.auth.signed_in:
-            return
-        self.cloud.delete_user()
-        self.auth.delete_account()
-        self._error = None
-        self._last_synced_at = None
-
-    def _job(self) -> bool:
-        """SyncWorker가 실행한다. 다시 시도해야 하면 True."""
-        if not self.auth.signed_in:
-            return False
-        self._running = True
-        changed = False
-        try:
-            changed = self.controller.sync(self.cloud, initial=self._initial)
-        except SyncError as ex:
-            self._error = ex
-        except Exception as ex:  # 스레드가 죽지 않도록 예상 밖 오류도 기록만 한다
-            self._error = SyncError("unknown", repr(ex))
-        else:
-            self._initial = False
-            self._error = None
-            self._last_synced_at = self._clock()
-        finally:
-            self._running = False
-        if self.on_update is not None:
-            self.on_update(changed)
-        return self._error is not None and self._error.code in RETRYABLE

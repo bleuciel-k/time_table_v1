@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>대학 시간표 - 시간표 공유</title>
+
+  <!-- Open Graph / 카카오톡·SNS 공유 미리보기 -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="대학 시간표 - 시간표 공유">
+  <meta property="og:description" content="광고 없이 가장 깔끔한 대학 시간표. 공유받은 시간표를 바로 등록하세요!">
+  <meta property="og:image" content="icon.png">
+
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <style>
+    :root {
+      --bg: #F4F5F7;
+      --card-bg: #FFFFFF;
+      --ink: #181D26;
+      --muted: #64748B;
+      --primary: #181D26;
+      --primary-hover: #0D1218;
+      --accent: #2563EB;
+      --hairline: #E2E8F0;
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: var(--card-bg);
+      width: 100%;
+      max-width: 380px;
+      border-radius: var(--radius);
+      padding: 32px 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+      text-align: center;
+      border: 1px solid var(--hairline);
+    }
+
+    .app-icon {
+      width: 88px;
+      height: 88px;
+      border-radius: 20px;
+      margin: 0 auto 16px;
+      display: block;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+      object-fit: cover;
+    }
+
+    h1 {
+      font-size: 21px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 6px;
+      letter-spacing: -0.3px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 24px;
+      word-break: keep-all;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #EEF2FF;
+      color: #3730A3;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 14px 18px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #FFFFFF;
+    }
+
+    .btn-primary:active {
+      background: var(--primary-hover);
+      transform: scale(0.98);
+    }
+
+    .btn-playstore {
+      background: #00875A;
+      color: #FFFFFF;
+    }
+
+    .btn-playstore:active {
+      background: #006644;
+      transform: scale(0.98);
+    }
+
+    .btn-secondary {
+      background: #F1F5F9;
+      color: var(--ink);
+    }
+
+    .btn-secondary:active {
+      background: #E2E8F0;
+      transform: scale(0.98);
+    }
+
+    .guide-box {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px dashed var(--hairline);
+      text-align: left;
+    }
+
+    .guide-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .guide-step {
+      font-size: 13px;
+      color: #475569;
+      line-height: 1.6;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .step-num {
+      background: #E2E8F0;
+      color: #334155;
+      font-size: 11px;
+      font-weight: 700;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(24, 29, 38, 0.95);
+      color: #FFFFFF;
+      padding: 12px 20px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1000;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    footer {
+      margin-top: 24px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <img src="icon.png" alt="대학 시간표" class="app-icon" onerror="this.src='https://raw.githubusercontent.com/bleuciel-k/time_table_v1/main/assets/icon.png'">
+    <h1>대학 시간표</h1>
+    <p class="subtitle">친구가 공유한 시간표가 도착했습니다.<br>앱을 통해 바로 확인하고 등록하세요.</p>
+
+    <div class="status-badge" id="badge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+      <span>시간표 데이터 준비 완료</span>
+    </div>
+
+    <div class="actions">
+      <!-- 1. 앱이 설치되어 있는 경우 바로 열기 -->
+      <a id="btn-open-app" href="#" class="btn btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        <span>시간표 앱에서 열기</span>
+      </a>
+
+      <!-- 2. 아직 앱이 없는 경우 구글 플레이스토어로 이동 -->
+      <a id="btn-install" href="https://play.google.com/store/apps/details?id=com.seonho.timetable" target="_blank" class="btn btn-playstore">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3.609 1.814L13.793 12 3.61 22.186a1.99 1.99 0 0 1-.61-1.428V3.242c0-.555.226-1.057.61-1.428zm11.603 11.603l2.457 2.457-11.45 6.467 8.993-8.924zm0-2.834L6.22 1.659l11.45 6.467-2.458 2.457zm1.415 1.417l3.864 2.181a1.24 1.24 0 0 0 0-2.181l-3.864-2.181z"/></svg>
+        <span>Google Play에서 앱 설치하기</span>
+      </a>
+
+      <!-- 3. 공유 코드 클립보드 복사 -->
+      <button id="btn-copy" class="btn btn-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span>시간표 코드 복사하기</span>
+      </button>
+    </div>
+
+    <div class="guide-box">
+      <div class="guide-title">가져오는 방법</div>
+      <div class="guide-step">
+        <div class="step-num">1</div>
+        <div>아직 앱이 없다면 <b>[Google Play에서 앱 설치하기]</b>를 눌러 앱을 받으세요.</div>
+      </div>
+      <div class="guide-step">
+        <div class="step-num">2</div>
+        <div>앱 설치 후 상단의 <b>[시간표 앱에서 열기]</b>를 누르면 시간표가 자동으로 쏙 들어옵니다!</div>
+      </div>
+      <div class="guide-step">
+        <div class="step-num">3</div>
+        <div>앱 내 <b>메뉴(⋮) ➔ [시간표 가져오기]</b>에 복사한 코드를 직접 붙여넣으셔도 됩니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    광고 없는 가장 심플한 대학 시간표
+  </footer>
+
+  <div id="toast" class="toast">공유 코드가 클립보드에 복사되었습니다!</div>
+
+  <script>
+    // 1. 토큰 파싱 (URL 해시 #토큰 또는 쿼리스트링 ?data=토큰)
+    function getToken() {
+      if (window.location.hash && window.location.hash.length > 1) {
+        return window.location.hash.substring(1);
+      }
+      const params = new URLSearchParams(window.location.search);
+      return params.get("data") || "";
+    }
+
+    const token = getToken();
+    const appDeepLink = "timetable://import?data=" + encodeURIComponent(token);
+    const playStoreUrl = "https://play.google.com/store/apps/details?id=com.seonho.timetable";
+
+    const btnOpenApp = document.getElementById("btn-open-app");
+    const btnInstall = document.getElementById("btn-install");
+    const btnCopy = document.getElementById("btn-copy");
+    const toast = document.getElementById("toast");
+
+    btnOpenApp.href = appDeepLink;
+
+    // 2. 모바일 안드로이드 감지 및 자동 앱 실행 시도
+    const isAndroid = /Android/i.test(navigator.userAgent);
+
+    if (token) {
+      if (isAndroid) {
+        // 안드로이드 기기인 경우 딥링크 우선 시도
+        setTimeout(function() {
+          window.location.href = appDeepLink;
+        }, 300);
+      }
+    } else {
+      document.getElementById("badge").style.display = "none";
+      btnOpenApp.style.display = "none";
+    }
+
+    // 3. 코드 복사 기능
+    btnCopy.addEventListener("click", function() {
+      const copyText = token ? window.location.href : playStoreUrl;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(copyText).then(showToast);
+      } else {
+        const input = document.createElement("input");
+        input.value = copyText;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        document.body.removeChild(input);
+        showToast();
+      }
+    });
+
+    function showToast() {
+      toast.classList.add("show");
+      setTimeout(function() {
+        toast.classList.remove("show");
+      }, 2500);
+    }
+  </script>
+</body>
+</html>

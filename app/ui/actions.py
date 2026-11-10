@@ -9,11 +9,11 @@ from typing import Callable
 import flet as ft
 
 from app import design as d
-from app.controller import ActionResult, AppController, SyncManager
+from app.controller import ActionResult, AppController
 from app.model import DAY_LABELS, PERIOD_MAX, PERIOD_MIN, UNDO_WINDOW, cell_key, parse_cell_key
-from app.ui.account import open_account
 from app.ui.editor import open_cell_editor
 from app.ui.export import open_export_sheet
+from app.ui.qr_dialog import open_qr_export_dialog, open_qr_import_sheet
 from app.ui.settings import open_settings
 from app.ui.theme import danger_button, menu_item, menu_sheet, secondary_button, snack_bar
 from app.ui.theme import dialog as theme_dialog
@@ -30,13 +30,11 @@ class Actions:
         controller: AppController,
         render: Callable[[], None],
         picker: ft.FilePicker | None = None,
-        sync: SyncManager | None = None,
     ) -> None:
         self.page = page
         self.controller = controller
         self.render = render
         self.picker = picker
-        self.sync = sync
         self.drag_mode: bool = False
         self.dragging_cell_key: str | None = None
         self.on_drag_listener: Callable[[bool, str | None], None] | None = None
@@ -65,6 +63,11 @@ class Actions:
     def toggle_drag_mode(self) -> None:
         self.drag_mode = not self.drag_mode
         self.dragging_cell_key = None
+<<<<<<< HEAD
+=======
+        if self.on_drag_listener:
+            self.on_drag_listener(False, None)
+>>>>>>> 330b903 (Clean up unused legacy files and add docs)
         self._hand_icon.color = d.LINK if self.drag_mode else d.INK
         self.hand_btn.bgcolor = d.SURFACE_STRONG if self.drag_mode else None
         self.hand_btn.scale = 1.15 if self.drag_mode else 1.0
@@ -90,18 +93,34 @@ class Actions:
     def delete_dragged_cell(self, key: str | None = None) -> None:
         target_key = key or self.dragging_cell_key
         self.dragging_cell_key = None
+<<<<<<< HEAD
+=======
+        if self.on_drag_listener:
+            self.on_drag_listener(False, None)
+>>>>>>> 330b903 (Clean up unused legacy files and add docs)
         if target_key:
             self.show_result(self.controller.clear_cell(target_key))
 
     def move_cell(self, src_key: str, dest_key: str) -> None:
         """수업을 다른 칸으로 옮기거나 맞바꾼다. 연속 수업(span >= 2) 이동 시 스마트 슬롯 매칭 적용."""
+<<<<<<< HEAD
+=======
+        self.dragging_cell_key = None
+        if self.on_drag_listener:
+            self.on_drag_listener(False, None)
+>>>>>>> 330b903 (Clean up unused legacy files and add docs)
         resolved_dest = dest_key
         try:
             tt = self.controller.workspace.active
             src_keys = self.controller.workspace.block_keys(src_key)
             span = len(src_keys)
+<<<<<<< HEAD
             # 빈 칸으로 이동하는 2칸 이상의 연속 수업인 경우
             if span > 1 and dest_key not in tt.cells:
+=======
+            # 빈 칸으로 이동하거나 원래 자기 슬롯 내에서 시프트 이동하는 2칸 이상의 연속 수업인 경우
+            if span > 1 and (dest_key not in tt.cells or dest_key in src_keys):
+>>>>>>> 330b903 (Clean up unused legacy files and add docs)
                 dest_day, dest_start = parse_cell_key(dest_key)
                 settings = self.controller.workspace.data.settings
                 # 사용자가 카드의 1번째, 2번째, ... n번째 칸 중 어디를 잡고 놓았더라도
@@ -253,19 +272,85 @@ class Actions:
             return
         open_export_sheet(self.page, self.controller, self.picker, self.show_result)
 
-    def open_account(self) -> None:
-        open_account(self.page, self.sync, self.show_result)
+    def open_qr_export(self) -> None:
+        open_qr_export_dialog(
+            self.page,
+            self.controller.workspace.active,
+            self.controller.workspace.data.settings,
+            self.show_result,
+            self.picker,
+        )
+
+    def open_qr_import(self) -> None:
+        open_qr_import_sheet(self.page, self.controller, self.show_result, self.render)
 
     def timetable_menu(self) -> ft.PopupMenuButton:
         c = self.controller
+
+        bar1 = ft.Container(
+            width=4,
+            height=4,
+            border_radius=2,
+            bgcolor=d.INK,
+            animate=ft.Animation(180, ft.AnimationCurve.EASE_OUT),
+        )
+        bar2 = ft.Container(
+            width=4,
+            height=4,
+            border_radius=2,
+            bgcolor=d.INK,
+            animate=ft.Animation(180, ft.AnimationCurve.EASE_OUT),
+        )
+        bar3 = ft.Container(
+            width=4,
+            height=4,
+            border_radius=2,
+            bgcolor=d.INK,
+            animate=ft.Animation(180, ft.AnimationCurve.EASE_OUT),
+        )
+        icon_box = ft.Container(
+            content=ft.Column(
+                [bar1, bar2, bar3],
+                spacing=3.5,
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            width=36,
+            height=36,
+            alignment=ft.Alignment.CENTER,
+            border_radius=ft.BorderRadius.all(18),
+        )
+
+        def set_expanded(expanded: bool) -> None:
+            w = 18 if expanded else 4
+            h = 2.5 if expanded else 4
+            r = 1.25 if expanded else 2
+            for b in (bar1, bar2, bar3):
+                b.width = w
+                b.height = h
+                b.border_radius = r
+            try:
+                icon_box.update()
+            except Exception:
+                pass
+
         return ft.PopupMenuButton(
-            icon=ft.Icons.MORE_VERT,
-            icon_color=d.INK,
+            content=icon_box,
+            menu_position=ft.PopupMenuPosition.UNDER,
             tooltip="시간표 메뉴",
             bgcolor=d.CANVAS,
-            elevation=2,
+            elevation=3,
             shape=ft.RoundedRectangleBorder(radius=d.RADIUS_MD),
+            on_open=lambda e: set_expanded(True),
+            on_cancel=lambda e: set_expanded(False),
+            on_select=lambda e: set_expanded(False),
             items=[
+                ft.PopupMenuItem(
+                    "QR코드로 공유", icon=ft.Icons.QR_CODE_2, on_click=lambda e: self.open_qr_export()
+                ),
+                ft.PopupMenuItem(
+                    "시간표 가져오기", icon=ft.Icons.DOWNLOAD, on_click=lambda e: self.open_qr_import()
+                ),
                 ft.PopupMenuItem(
                     "이미지로 저장", icon=ft.Icons.IMAGE, on_click=lambda e: self.open_export()
                 ),
@@ -273,15 +358,13 @@ class Actions:
                     "설정", icon=ft.Icons.SETTINGS, on_click=lambda e: self.open_settings()
                 ),
                 ft.PopupMenuItem(
-                    "계정", icon=ft.Icons.ACCOUNT_CIRCLE, on_click=lambda e: self.open_account()
-                ),
-                ft.PopupMenuItem(
-                    "시간표 비우기", icon=ft.Icons.CLEAR_ALL,
+                    "시간표 비우기",
+                    icon=ft.Icons.CLEAR_ALL,
                     on_click=lambda e: self.show_result(c.clear_timetable()),
                 ),
                 ft.PopupMenuItem(
-                    "시간표 삭제", icon=ft.Icons.DELETE_FOREVER,
-                    on_click=lambda e: self.show_result(c.delete_timetable()),
+                    "닫기",
+                    icon=ft.Icons.CLOSE,
                 ),
             ],
         )

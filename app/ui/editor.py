@@ -91,26 +91,59 @@ def open_cell_editor(
         active_track_color=d.INK,
         label_text_style=t.style(d.BODY_MD, d.BODY),
     )
-    swatches = ft.Row(wrap=True, spacing=d.SPACE_XS, run_spacing=d.SPACE_XS)
-    hint = t.text(SUGGESTED_HINT, d.SMALL, color=d.MUTED)
-    save_button = t.primary_button("저장", on_save)
 
-    def swatch(color: str) -> ft.Container:
-        selected = color == form.color
-        return ft.Container(
+    # 16개 색상 견본은 매 타이핑마다 재생성하지 않고 1회만 생성하여 재사용
+    swatch_boxes: dict[str, ft.Container] = {}
+    swatch_checks: dict[str, ft.Icon] = {}
+    current_selected_color = [form.color]
+
+    for color in PALETTE:
+        is_sel = color == form.color
+        check_icon = ft.Icon(
+            ft.Icons.CHECK,
+            color=text_color(color),
+            size=18,
+            visible=is_sel,
+        )
+        swatch_checks[color] = check_icon
+        box = ft.Container(
             width=SWATCH_SIZE,
             height=SWATCH_SIZE,
             bgcolor=resolve_hex(color),
-            border_radius=ft.BorderRadius.all(SWATCH_SIZE / 2),  # 동그란 색 견본만 예외
-            border=ft.Border.all(2, d.INK) if selected else ft.Border.all(1, d.HAIRLINE),
-            content=ft.Icon(ft.Icons.CHECK, color=text_color(color), size=18) if selected else None,
+            border_radius=ft.BorderRadius.all(SWATCH_SIZE / 2),
+            border=ft.Border.all(2, d.INK) if is_sel else ft.Border.all(1, d.HAIRLINE),
+            content=check_icon,
             alignment=ft.Alignment.CENTER,
             tooltip=color,
             on_click=lambda e, c=color: on_color(c),
         )
+        swatch_boxes[color] = box
+
+    swatches = ft.Row(
+        list(swatch_boxes.values()),
+        wrap=True,
+        spacing=d.SPACE_XS,
+        run_spacing=d.SPACE_XS,
+    )
+    hint = t.text(SUGGESTED_HINT, d.SMALL, color=d.MUTED)
+    save_button = t.primary_button("저장", on_save)
+
+    sheet: ft.BottomSheet | None = None
+
+    def update_swatch_selection(new_color: str) -> None:
+        old_color = current_selected_color[0]
+        if old_color == new_color:
+            return
+        if old_color in swatch_boxes:
+            swatch_boxes[old_color].border = ft.Border.all(1, d.HAIRLINE)
+            swatch_checks[old_color].visible = False
+        if new_color in swatch_boxes:
+            swatch_boxes[new_color].border = ft.Border.all(2, d.INK)
+            swatch_checks[new_color].visible = True
+        current_selected_color[0] = new_color
 
     def sync() -> None:
-        """폼 상태 → 컨트롤 반영."""
+        """폼 상태 → 컨트롤 반영. 전체 페이지가 아닌 바텀시트만 독립적으로 업데이트한다."""
         errors = form.errors
         subject.error = errors.get("subject") if subject_touched else None
         for name, field in optional.items():
@@ -118,8 +151,17 @@ def open_cell_editor(
         save_button.disabled = not form.can_save
         show_memo.visible = bool(form.memo.strip())  # 메모가 있을 때만 의미 있는 선택
         hint.visible = form.suggested
-        swatches.controls = [swatch(color) for color in PALETTE]
-        page.update()
+        update_swatch_selection(form.color)
+        if sheet is not None:
+            try:
+                sheet.update()
+                return
+            except Exception:
+                pass
+        try:
+            page.update()
+        except Exception:
+            pass
 
     actions_controls: list[ft.Control] = []
     if not form.is_new:

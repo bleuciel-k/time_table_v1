@@ -483,23 +483,24 @@ class Workspace:
         """연속 수업을 dest_key가 맨 위 칸이 되도록 옮긴다.
 
         dest_key가 같은 길이의 다른 수업이면 서로 맞바꾼다.
+        같은 요일에서 1칸 위·아래 등으로 일부 겹쳐서 이동하는 시프트도 정상 처리한다.
         """
-        if src_key == dest_key:
-            return False
         self._check_key_in_settings(src_key)
         self._check_key_in_settings(dest_key)
         tt = self.timetable(timetable_id)
         if src_key not in tt.cells:
             return False
         src_keys = self.block_keys(src_key, timetable_id)
-        if dest_key in src_keys:
-            return False
-        span = len(src_keys)
         src_day, src_start = parse_cell_key(src_keys[0])
         dest_day, dest_start = parse_cell_key(dest_key)
+        # 시작 위치와 요일이 완전히 같으면 변화 없음
+        if src_day == dest_day and src_start == dest_start:
+            return False
+        span = len(src_keys)
         cell = tt.cells[src_keys[0]]
 
-        if dest_key in tt.cells:
+        # 진짜 다른 수업과의 맞바꾸기(Swap): dest_key가 채워져 있고 자기 자신의 블록이 아닌 경우
+        if dest_key in tt.cells and dest_key not in src_keys:
             dest_keys = self.block_keys(dest_key, timetable_id)
             if len(dest_keys) != span:
                 raise ModelError("길이가 다른 수업과는 자리를 바꿀 수 없어요.")
@@ -514,6 +515,7 @@ class Workspace:
             self._touch(tt)
             return True
 
+        # 빈 칸으로 이동하거나, 원래 자리와 일부 겹치는 시프트 이동
         dest_end = dest_start + span - 1
         if dest_end > self.data.settings.periods:
             raise ModelError("아래 칸이 모자라서 옮길 수 없어요.")

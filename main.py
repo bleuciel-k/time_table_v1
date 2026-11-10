@@ -5,33 +5,14 @@ import os
 import flet as ft
 
 from app import design as d
-from app.controller import AppController, SyncManager
+from app.controller import AppController
 from app.sample import sample_data
 from app.palette import background_hex
 from app.storage import Storage
-from app.sync import Auth, CloudStore
+from app.qr import decode_timetable
 from app.ui.actions import Actions
 from app.ui.grid import build_grid
 from app.ui.theme import build_theme, snack_bar, text
-
-
-def build_sync(page: ft.Page, controller: AppController, render) -> SyncManager | None:
-    """config.py가 있으면 동기화를 준비한다 (F7). 없으면 로컬 전용으로 동작한다 (P3)."""
-    try:
-        import config
-    except ImportError:
-        return None
-    api_key = getattr(config, "FIREBASE_API_KEY", "")
-    database_url = getattr(config, "DATABASE_URL", "")
-    if not api_key or not database_url:
-        return None
-
-    def on_update(changed: bool) -> None:
-        if changed:
-            render()  # 원격 변경을 받아 로컬이 바뀜
-
-    auth = Auth(api_key)
-    return SyncManager(controller, auth, CloudStore(auth, database_url), on_update=on_update)
 
 
 def main(page: ft.Page) -> None:
@@ -44,7 +25,10 @@ def main(page: ft.Page) -> None:
     page.theme_mode = ft.ThemeMode.LIGHT  # DESIGN.md는 흰 캔버스 기준의 라이트 전용 시스템
     page.bgcolor = d.CANVAS  # 실제 배경색은 render()에서 설정값에 맞춰 바꾼다 (F9)
     page.padding = ft.Padding.symmetric(horizontal=d.SPACE_XS)  # 스마트폰 양옆 여백을 슬림하게 최적화 (16px -> 8px)
+<<<<<<< HEAD
     # v1.1: 크기 조절 모퉁이 추적 및 연속 교시 스마트 안착 하이라이트 반영
+=======
+>>>>>>> 330b903 (Clean up unused legacy files and add docs)
     seed = sample_data if os.getenv("TIMETABLE_SAMPLE") == "1" else None
     controller, warnings = AppController.open(Storage(), seed=seed)
     workspace = controller.workspace
@@ -126,6 +110,14 @@ def main(page: ft.Page) -> None:
             offset=ft.Offset(0, 4),
         )
         delete_icon.size = 22
+<<<<<<< HEAD
+=======
+        delete_target.visible = False
+        try:
+            delete_target.update()
+        except Exception:
+            pass
+>>>>>>> 330b903 (Clean up unused legacy files and add docs)
         actions.delete_dragged_cell(src)
 
     delete_target = ft.Container(
@@ -136,29 +128,55 @@ def main(page: ft.Page) -> None:
             on_leave=on_delete_leave,
             on_accept=on_delete_accept,
         ),
+<<<<<<< HEAD
         top=4,
         left=12,
         right=12,
         height=52,
     )
+=======
+        top=6,
+        left=12,
+        right=12,
+        height=48,
+        visible=False,
+    )
+    page.overlay.append(delete_target)
+>>>>>>> 330b903 (Clean up unused legacy files and add docs)
 
     body = ft.Container(
         expand=True,
         padding=ft.Padding.only(top=d.SPACE_XS, bottom=d.SPACE_XS),
         border=ft.Border.only(top=ft.BorderSide(1, d.HAIRLINE)),  # 앱 바와 본문 사이 실선
+<<<<<<< HEAD
         content=ft.Stack(
             [grid_container],
             expand=True,
         ),
+=======
+        content=grid_container,
+        clip_behavior=ft.ClipBehavior.HARD_EDGE,  # GPU 렌더링 레이어 분리 (RepaintBoundary 효과)
+>>>>>>> 330b903 (Clean up unused legacy files and add docs)
     )
+
+    last_width: list[float | None] = [None]
+    last_height: list[float | None] = [None]
 
     def render() -> None:
         settings = workspace.data.settings
         title.value = workspace.active.name
-        page.bgcolor = background_hex(settings.background)
+        bg = background_hex(settings.background)
+        page.bgcolor = bg
+        if page.appbar:
+            page.appbar.bgcolor = bg
         editable = not controller.read_only
         avail_w = (page.width - 2 * d.SPACE_XS) if page.width else None
         avail_h = (page.height - 110) if page.height else None
+<<<<<<< HEAD
+=======
+        last_width[0] = page.width
+        last_height[0] = page.height
+>>>>>>> 330b903 (Clean up unused legacy files and add docs)
         grid_container.content = build_grid(
             workspace.active,
             settings,
@@ -175,6 +193,7 @@ def main(page: ft.Page) -> None:
             on_extend_block=actions.extend_block if editable else None,
             on_drag_change=actions.on_drag_change if editable else None,
         )
+<<<<<<< HEAD
         # 수정 모드일 때 상단에 삭제 영역을 플로팅 오버레이로 배치
         show_delete = editable and actions.drag_mode
         stack_controls: list[ft.Control] = [grid_container]
@@ -186,6 +205,18 @@ def main(page: ft.Page) -> None:
     def on_drag_listener(dragging: bool, key: str | None) -> None:
         """드래그 시작/종료 시 전체 render 대신 삭제 바의 입체 스타일만 갱신 (그리드 보존)."""
         if dragging:
+=======
+        # 수정 모드에서 수업을 실제로 드래그할 때만 상단 바 자리에 삭제 영역 표시
+        delete_target.visible = bool(editable and actions.drag_mode and actions.dragging_cell_key)
+        page.update()
+
+    def on_drag_listener(dragging: bool, key: str | None) -> None:
+        """수업을 드래그할 때만 상단 삭제 영역이 뜨고, 드래그가 끝나면 사라진다."""
+        editable = not controller.read_only
+        show = bool(editable and actions.drag_mode and dragging)
+        delete_target.visible = show
+        if show:
+>>>>>>> 330b903 (Clean up unused legacy files and add docs)
             delete_zone_container.border = ft.Border.all(1.2, ft.Colors.RED_300)
             delete_zone_container.shadow = ft.BoxShadow(
                 blur_radius=16,
@@ -202,15 +233,23 @@ def main(page: ft.Page) -> None:
                 offset=ft.Offset(0, 4),
             )
         try:
+<<<<<<< HEAD
             delete_zone_container.update()
         except Exception:
             pass
 
     sync = build_sync(page, controller, render)
     actions = Actions(page, controller, render, picker=ft.FilePicker(), sync=sync)
+=======
+            delete_target.update()
+        except Exception:
+            pass
+
+    actions = Actions(page, controller, render, picker=ft.FilePicker())
+>>>>>>> 330b903 (Clean up unused legacy files and add docs)
     actions.on_drag_listener = on_drag_listener
     page.appbar = ft.AppBar(
-        bgcolor=d.CANVAS,
+        bgcolor=background_hex(controller.workspace.data.settings.background),
         color=d.INK,
         elevation=0,
         elevation_on_scroll=0,
@@ -230,10 +269,70 @@ def main(page: ft.Page) -> None:
     )
     page.add(ft.SafeArea(body, expand=True))
     render()
-    page.on_resize = lambda e: render()  # 창 크기가 바뀌면 드래그 카드 너비도 다시 맞춘다
-    if sync is not None:
-        sync.start()
-        page.on_close = lambda e: sync.stop()
+    def handle_resize(e: ft.ControlEvent) -> None:
+        # 모바일 가상 키보드 팝업이나 사파리 주소창 스크롤로 인한 미세한 높이 변화 시
+        # 전체 그리드를 매 프레임마다 재빌드하는 병목을 방지한다.
+        w = page.width or 0
+        h = page.height or 0
+        prev_w = last_width[0] or 0
+        prev_h = last_height[0] or 0
+        if prev_w == 0 or abs(w - prev_w) > 6 or abs(h - prev_h) > 120:
+            render()
+
+    page.on_resize = handle_resize
+
+    # 딥링크(QR 코드 카메라 스캔 / 외부 링크 클릭)를 통한 시간표 자동 가져오기 처리
+    def handle_deep_link(route_str: str) -> None:
+        if not route_str or route_str == "/":
+            return
+        try:
+            imported_tt, _ = decode_timetable(route_str)
+
+            def confirm_import(e: ft.ControlEvent) -> None:
+                page.pop_dialog()
+                actions.show_result(controller.import_timetable(imported_tt, switch_to=True))
+                render()
+
+            dlg = ft.AlertDialog(
+                title=ft.Row(
+                    [
+                        ft.Icon(ft.Icons.DOWNLOAD, color=d.INK, size=22),
+                        text("시간표 가져오기", d.TITLE, color=d.INK),
+                    ],
+                    spacing=d.SPACE_XS,
+                ),
+                content=ft.Container(
+                    content=ft.Column(
+                        [
+                            text(
+                                f"공유받은 '{imported_tt.name}' 시간표를 가져올까요?",
+                                d.BODY,
+                                color=d.INK,
+                            ),
+                            text(
+                                f"등록된 수업: 총 {len(imported_tt.cells)}개",
+                                d.CAPTION,
+                                color=d.MUTED,
+                            ),
+                        ],
+                        tight=True,
+                        spacing=4,
+                    ),
+                    width=280,
+                ),
+                actions=[
+                    ft.TextButton("취소", on_click=lambda e: page.pop_dialog()),
+                    ft.FilledButton("가져오기", on_click=confirm_import),
+                ],
+            )
+            page.show_dialog(dlg)
+        except Exception:
+            pass
+
+    page.on_route_change = lambda e: handle_deep_link(e.route)
+    if page.route and page.route != "/":
+        handle_deep_link(page.route)
+
     if warnings:
         page.show_dialog(snack_bar("\n".join(warnings)))
 
