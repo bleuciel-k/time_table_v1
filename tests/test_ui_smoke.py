@@ -87,12 +87,14 @@ def test_timetable_list_and_dialogs_open(page, ctrl):
 
 
 def test_export_sheet_opens(page, ctrl):
-    open_export_sheet(page, ctrl, picker=ft.FilePicker(), show_result=noop_result)
+    open_export_sheet(page, ctrl, picker=ft.FilePicker(), show_result=noop_result, share=ft.Share())
     assert len(page.dialogs) == 1
 
 
 def test_qr_export_dialog_opens(page, ctrl):
-    open_qr_export_dialog(page, ctrl.workspace.active, ctrl.workspace.data.settings, noop_result, picker=ft.FilePicker())
+    open_qr_export_dialog(
+        page, ctrl.workspace.active, ctrl.workspace.data.settings, noop_result, picker=ft.FilePicker(), share=ft.Share()
+    )
     assert len(page.dialogs) == 1
 
 

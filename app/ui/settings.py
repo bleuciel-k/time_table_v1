@@ -8,10 +8,14 @@ import flet as ft
 from app import design as d
 from app.controller import ActionResult, AppController
 from app.model import DAYS_CHOICES, PERIOD_MAX, PERIOD_MIN, Settings, lunch_time
-from app.palette import BACKGROUND_LABELS, BACKGROUNDS
+from app.palette import (
+    BACKGROUND_LABELS,
+    BACKGROUNDS,
+    FEATURED_BACKGROUNDS,
+    THEME_ACCENTS,
+    THEME_SWATCHES,
+)
 from app.ui import theme as t
-
-SWATCH_SIZE = 36
 
 ShowResult = Callable[[ActionResult], None]
 NOT_A_NUMBER = "수업 시간과 쉬는 시간은 숫자로 입력하세요."
@@ -19,9 +23,33 @@ NOT_A_NUMBER = "수업 시간과 쉬는 시간은 숫자로 입력하세요."
 
 def open_settings(page: ft.Page, controller: AppController, show_result: ShowResult) -> None:
     draft: Settings = replace(controller.workspace.data.settings)
+    show_all_themes = draft.background not in FEATURED_BACKGROUNDS
     days_row = ft.Row(spacing=d.SPACE_XS)
-    background_row = ft.Row(wrap=True, spacing=d.SPACE_XS, run_spacing=d.SPACE_XS)
-    background_label = t.label("테마 배경색")
+    theme_grid = ft.Column(spacing=d.SPACE_SM, tight=True)
+    theme_toggle_btn = ft.TextButton(
+        "더보기",
+        style=ft.ButtonStyle(
+            color=d.MUTED,
+            padding=ft.Padding.symmetric(horizontal=d.SPACE_XS, vertical=0),
+            text_style=t.style(d.SMALL, d.MUTED),
+        ),
+    )
+    theme_header = ft.Row(
+        [
+            ft.Column(
+                [
+                    t.text("컬러 테마", d.LABEL, color=d.INK),
+                    t.text("오늘의 기분에 맞는 색을 골라보세요", d.SMALL, color=d.MUTED),
+                ],
+                spacing=2,
+                tight=True,
+                expand=True,
+            ),
+            theme_toggle_btn,
+        ],
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        vertical_alignment=ft.CrossAxisAlignment.START,
+    )
     periods_row = ft.Row(wrap=True, spacing=d.SPACE_XS, run_spacing=d.SPACE_XS)
     start_time = t.text_field("1교시 시작", value=draft.start_time, helper="HH:MM")
     class_minutes = t.text_field("수업 시간(분)", value=str(draft.class_minutes))
@@ -73,6 +101,13 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
         draft = replace(draft, background=value)
         sync()
 
+    def toggle_all_themes(e: ft.Event[ft.TextButton]) -> None:
+        nonlocal show_all_themes
+        show_all_themes = not show_all_themes
+        sync()
+
+    theme_toggle_btn.on_click = toggle_all_themes
+
     def toggle_times(e: ft.Event[ft.Switch]) -> None:
         nonlocal draft
         draft = replace(draft, show_times=bool(e.control.value))
@@ -108,23 +143,61 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
     show_switch = switch("교시 시간 표시", draft.show_times, toggle_times)
     lunch_switch = switch("점심시간", draft.lunch, toggle_lunch)
 
-    def background_swatch(key: str) -> ft.Container:
+    def theme_card(key: str) -> ft.Container:
         selected = draft.background == key
+        accent = THEME_ACCENTS.get(key, d.INK)
+        swatch_hex = THEME_SWATCHES.get(key, BACKGROUNDS[key])
+        badge = (
+            ft.Container(
+                ft.Icon(ft.Icons.CHECK, color=d.ON_PRIMARY, size=12),
+                width=20,
+                height=20,
+                bgcolor=accent,
+                border_radius=ft.BorderRadius.all(10),
+                alignment=ft.Alignment.CENTER,
+            )
+            if selected
+            else ft.Container(width=20, height=20)
+        )
+        swatch_bar = ft.Container(
+            height=28,
+            bgcolor=swatch_hex,
+            border_radius=ft.BorderRadius.all(d.RADIUS_SM),
+            border=ft.Border.all(0.5, "#12000000"),
+        )
         return ft.Container(
-            ft.Icon(ft.Icons.CHECK, color=d.INK, size=18) if selected else None,
-            width=SWATCH_SIZE,
-            height=SWATCH_SIZE,
-            bgcolor=BACKGROUNDS[key],
-            border_radius=ft.BorderRadius.all(SWATCH_SIZE / 2),
-            border=ft.Border.all(2, d.INK) if selected else ft.Border.all(1, d.HAIRLINE),
-            alignment=ft.Alignment.CENTER,
-            tooltip=BACKGROUND_LABELS[key],
+            ft.Column(
+                [
+                    ft.Row(
+                        [t.text(BACKGROUND_LABELS[key], d.CAPTION, color=d.INK), badge],
+                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
+                    swatch_bar,
+                ],
+                spacing=d.SPACE_XS,
+                tight=True,
+            ),
+            expand=True,
+            padding=ft.Padding.all(d.SPACE_SM),
+            bgcolor=BACKGROUNDS[key] if selected and key != "white" else d.CANVAS,
+            border_radius=ft.BorderRadius.all(d.RADIUS_LG),
+            border=ft.Border.all(1.5, accent) if selected else ft.Border.all(1, d.HAIRLINE),
+            ink=True,
             on_click=lambda e, k=key: choose_background(k),
         )
 
     def sync() -> None:
-        background_row.controls = [background_swatch(key) for key in BACKGROUNDS]
-        background_label.value = f"테마 배경색 · {BACKGROUND_LABELS[draft.background]}"
+        visible_keys = list(BACKGROUNDS) if show_all_themes else list(FEATURED_BACKGROUNDS)
+        theme_toggle_btn.content = "접기" if show_all_themes else f"더보기 ({len(BACKGROUNDS)})"
+        card_rows: list[ft.Control] = []
+        for idx in range(0, len(visible_keys), 2):
+            pair = visible_keys[idx : idx + 2]
+            row_controls: list[ft.Control] = [theme_card(k) for k in pair]
+            if len(row_controls) == 1:
+                row_controls.append(ft.Container(expand=True))
+            card_rows.append(ft.Row(row_controls, spacing=d.SPACE_SM))
+        theme_grid.controls = card_rows
         days_row.controls = [
             t.chip(f"{value}일", draft.days == value, lambda v=value: choose_days(v))
             for value in DAYS_CHOICES
@@ -171,8 +244,8 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
             time_fields,
             lunch_switch,
             lunch_fields,
-            background_label,
-            background_row,
+            theme_header,
+            theme_grid,
             t.actions_row(
                 t.secondary_button("취소", lambda e: close()),
                 t.primary_button("저장", save),

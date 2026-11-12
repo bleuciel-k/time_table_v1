@@ -448,8 +448,8 @@ def _card_lines(cell: Cell) -> list[ft.Control]:
 def _card(cell: Cell, height: float = CELL_HEIGHT, **kwargs) -> ft.Container:
     """수업 칸의 모양. Figma 스타일의 부드러운 그라데이션과 입체 그림자를 적용한다."""
     base_hex = resolve_hex(cell.color)
-    top_tint = lighten_hex(base_hex, 0.12)
-    bottom_tint = darken_hex(base_hex, 0.03)
+    top_tint = lighten_hex(base_hex, 0.05)
+    bottom_tint = darken_hex(base_hex, 0.02)
 
     return ft.Container(
         ft.Column(
@@ -470,7 +470,7 @@ def _card(cell: Cell, height: float = CELL_HEIGHT, **kwargs) -> ft.Container:
             ft.BoxShadow(
                 blur_radius=6,
                 spread_radius=0,
-                color="#14000000",
+                color="#10000000",
                 offset=ft.Offset(0, 2),
             ),
         ),

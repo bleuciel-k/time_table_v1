@@ -13,6 +13,8 @@ from app.ui import theme as t
 
 ShowResult = Callable[[ActionResult], None]
 PREVIEW_HEIGHT = 260
+SAVE_MODES = ("album", "file")
+SAVE_MODE_LABELS = {"album": "앨범 · 공유", "file": "파일로 저장"}
 
 
 def _preview_src(controller: AppController, options: ExportOptions) -> tuple[str, str]:
@@ -23,11 +25,17 @@ def _preview_src(controller: AppController, options: ExportOptions) -> tuple[str
 
 
 def open_export_sheet(
-    page: ft.Page, controller: AppController, picker: ft.FilePicker, show_result: ShowResult
+    page: ft.Page,
+    controller: AppController,
+    picker: ft.FilePicker,
+    show_result: ShowResult,
+    share: ft.Share | None = None,
 ) -> None:
     options = ExportOptions()
+    save_mode = "album" if share is not None else "file"
     format_row = ft.Row(spacing=d.SPACE_XS)
     scale_row = ft.Row(spacing=d.SPACE_XS)
+    mode_row = ft.Row(spacing=d.SPACE_XS)
     initial_src, initial_name = _preview_src(controller, options)
     preview = ft.Container(
         ft.Image(src=initial_src, fit=ft.BoxFit.CONTAIN, height=PREVIEW_HEIGHT),
@@ -38,10 +46,15 @@ def open_export_sheet(
         alignment=ft.Alignment.CENTER,
     )
     hint = t.text(initial_name, d.SMALL, color=d.MUTED)
+    sheet: ft.BottomSheet | None = None
 
     def close() -> None:
-        sheet.open = False
-        page.update()
+        if sheet is not None:
+            sheet.open = False
+        try:
+            page.update()
+        except Exception:
+            pass
 
     def choose_format(value: str) -> None:
         nonlocal options
@@ -53,8 +66,33 @@ def open_export_sheet(
         options = replace(options, scale=value)
         sync()
 
+    def choose_mode(value: str) -> None:
+        nonlocal save_mode
+        save_mode = value
+        sync()
+
     async def save(e: ft.Event[ft.FilledButton]) -> None:
         image, filename = controller.export_image(options)
+        if save_mode == "album" and share is not None:
+            media = "image/jpeg" if options.fmt == "jpg" else "image/png"
+            try:
+                res = await share.share_files(
+                    [ft.ShareFile.from_bytes(image, mime_type=media, name=filename)],
+                    title=filename,
+                )
+                if res.status == ft.ShareResultStatus.DISMISSED:
+                    return
+                if res.status == ft.ShareResultStatus.UNAVAILABLE:
+                    # 웹 HTTP 등 공유 시트를 띄울 수 없는 환경 -> 파일 저장으로 자동 폴백
+                    pass
+                else:
+                    close()
+                    show_result(ActionResult(False, "공유 시트를 열었어요. '이미지 저장'을 누르면 앨범에 저장됩니다."))
+                    return
+            except Exception:
+                # 브라우저 보안상 Share가 막히면 파일 저장으로 자연스럽게 폴백
+                pass
+
         try:
             path = await picker.save_file(
                 dialog_title="이미지 저장",
@@ -80,8 +118,21 @@ def open_export_sheet(
             t.chip(f"{value}x", options.scale == value, lambda v=value: choose_scale(v))
             for value in SCALES
         ]
+        mode_row.controls = [
+            t.chip(SAVE_MODE_LABELS[m], save_mode == m, lambda v=m: choose_mode(v))
+            for m in SAVE_MODES
+        ]
         preview.content.src, hint.value = _preview_src(controller, options)
-        page.update()
+        if sheet is not None:
+            try:
+                sheet.update()
+                return
+            except Exception:
+                pass
+        try:
+            page.update()
+        except Exception:
+            pass
 
     sheet = t.sheet(
         "이미지로 저장",
@@ -92,6 +143,8 @@ def open_export_sheet(
             format_row,
             t.label("배율"),
             scale_row,
+            t.label("저장 방식"),
+            mode_row,
             t.actions_row(
                 t.secondary_button("취소", lambda e: close()),
                 t.primary_button("저장", save),

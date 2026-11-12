@@ -20,6 +20,7 @@ def open_qr_export_dialog(
     settings: Settings,
     show_result: Callable[[ActionResult], None],
     picker: ft.FilePicker | None = None,
+    share: ft.Share | None = None,
 ) -> None:
     """현재 활성 시간표의 QR 코드와 딥링크 URL을 팝업으로 띄운다."""
     url = encode_timetable(timetable, settings)
@@ -32,26 +33,37 @@ def open_qr_export_dialog(
         except Exception:
             page.show_dialog(snack_bar("클립보드 접근이 제한되었습니다. 아래 텍스트를 직접 복사해 주세요."))
 
-    def save_qr_image(e: ft.ControlEvent) -> None:
+    async def save_qr_image(e: ft.ControlEvent) -> None:
+        filename = f"timetable_qr_{timetable.name}.png"
+        png_bytes = make_qr_image(url, box_size=10, border=3)
+        if share is not None:
+            try:
+                res = await share.share_files(
+                    [ft.ShareFile.from_bytes(png_bytes, mime_type="image/png", name=filename)],
+                    title=filename,
+                )
+                if res.status == ft.ShareResultStatus.DISMISSED:
+                    return
+                if res.status != ft.ShareResultStatus.UNAVAILABLE:
+                    page.show_dialog(snack_bar("공유 시트를 열었어요. '이미지 저장'으로 앨범에 저장하세요."))
+                    return
+            except Exception:
+                pass
         if picker is None:
             show_result(ActionResult(False, "이 환경에서는 이미지 저장을 지원하지 않습니다."))
             return
-        filename = f"timetable_qr_{timetable.name}.png"
-        png_bytes = make_qr_image(url, box_size=10, border=3)
-
-        def on_result(result_event: ft.FilePickerResultEvent) -> None:
-            path = result_event.path
-            if not path:
-                return
-            try:
-                with open(path, "wb") as f:
-                    f.write(png_bytes)
+        try:
+            path = await picker.save_file(
+                dialog_title="QR 이미지 저장",
+                file_name=filename,
+                file_type=ft.FilePickerFileType.CUSTOM,
+                allowed_extensions=["png"],
+                src_bytes=png_bytes,
+            )
+            if path:
                 page.show_dialog(snack_bar(f"QR 이미지를 저장했습니다: {filename}"))
-            except Exception as ex:
-                page.show_dialog(snack_bar(f"저장 실패: {ex}"))
-
-        picker.on_result = on_result
-        picker.save_file(file_name=filename, allowed_extensions=["png"])
+        except Exception as ex:
+            page.show_dialog(snack_bar(f"저장 실패: {ex}"))
 
     dialog = ft.AlertDialog(
         modal=True,
@@ -116,7 +128,7 @@ def open_qr_export_dialog(
             ft.TextButton(
                 "이미지 저장",
                 icon=ft.Icons.DOWNLOAD,
-                on_click=save_qr_image,
+                on_click=lambda e: asyncio.create_task(save_qr_image(e)),
             ),
             ft.FilledButton(
                 "닫기",

@@ -8,7 +8,10 @@ from app.palette import (
     BLACK,
     DEFAULT_BACKGROUND,
     DEFAULT_COLOR,
+    FEATURED_BACKGROUNDS,
     PALETTE,
+    THEME_ACCENTS,
+    THEME_SWATCHES,
     WHITE,
     background_hex,
     contrast_ratio,
@@ -65,6 +68,15 @@ def test_backgrounds_are_pale_and_labelled():
 def test_background_hex_falls_back_to_default():
     assert background_hex("ivory") == BACKGROUNDS["ivory"]
     assert background_hex("없는색") == BACKGROUNDS[DEFAULT_BACKGROUND]
+
+
+def test_theme_cards_metadata_matches_backgrounds():
+    assert BACKGROUNDS.keys() == THEME_SWATCHES.keys()
+    assert BACKGROUNDS.keys() == THEME_ACCENTS.keys()
+    assert set(FEATURED_BACKGROUNDS).issubset(BACKGROUNDS.keys())
+    for key, swatch in THEME_SWATCHES.items():
+        assert resolve_hex(swatch) == swatch, (key, swatch)
+        assert resolve_hex(THEME_ACCENTS[key]) == THEME_ACCENTS[key], key
 
 
 def test_lighten_and_darken_hex():

@@ -198,7 +198,7 @@ def main(page: ft.Page) -> None:
         except Exception:
             pass
 
-    actions = Actions(page, controller, render, picker=ft.FilePicker())
+    actions = Actions(page, controller, render, picker=ft.FilePicker(), share=ft.Share())
     actions.on_drag_listener = on_drag_listener
     page.appbar = ft.AppBar(
         bgcolor=background_hex(controller.workspace.data.settings.background),

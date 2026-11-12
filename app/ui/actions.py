@@ -30,11 +30,13 @@ class Actions:
         controller: AppController,
         render: Callable[[], None],
         picker: ft.FilePicker | None = None,
+        share: ft.Share | None = None,
     ) -> None:
         self.page = page
         self.controller = controller
         self.render = render
         self.picker = picker
+        self.share = share
         self.drag_mode: bool = False
         self.dragging_cell_key: str | None = None
         self.on_drag_listener: Callable[[bool, str | None], None] | None = None
@@ -256,7 +258,7 @@ class Actions:
         if self.picker is None:
             self.show_result(ActionResult(False, "이 환경에서는 파일 저장을 쓸 수 없습니다."))
             return
-        open_export_sheet(self.page, self.controller, self.picker, self.show_result)
+        open_export_sheet(self.page, self.controller, self.picker, self.show_result, share=self.share)
 
     def open_qr_export(self) -> None:
         open_qr_export_dialog(
@@ -265,6 +267,7 @@ class Actions:
             self.controller.workspace.data.settings,
             self.show_result,
             self.picker,
+            share=self.share,
         )
 
     def open_qr_import(self) -> None:
