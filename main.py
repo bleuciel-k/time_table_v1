@@ -214,8 +214,11 @@ def main(page: ft.Page) -> None:
             ),
             on_click=None if controller.read_only else (lambda e: actions.open_timetables()),
             ink=not controller.read_only,
-            padding=ft.Padding.symmetric(horizontal=d.SPACE_XS, vertical=d.SPACE_XXS),
-            border_radius=ft.BorderRadius.all(d.RADIUS_SM),
+            padding=ft.Padding.symmetric(horizontal=d.SPACE_SM, vertical=d.SPACE_XXS),
+            bgcolor=ft.Colors.with_opacity(0.75, "#FFFFFF"),
+            border=t.clay_border("#FFFFFF", rim_width=1.2, bottom_width=2.0),
+            shadow=t.clay_shadow(blur=6, y=2),
+            border_radius=ft.BorderRadius.all(d.RADIUS_MD),
         ),
         actions=None if controller.read_only else [actions.hand_button(), actions.timetable_menu()],
     )

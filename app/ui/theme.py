@@ -5,8 +5,52 @@ from typing import Callable, Iterable
 import flet as ft
 
 from app import design as d
+from app.palette import darken_hex, lighten_hex
 
 WEIGHTS = {400: ft.FontWeight.W_400, 500: ft.FontWeight.W_500, 600: ft.FontWeight.W_600}
+
+
+def clay_gradient(base_hex: str) -> ft.LinearGradient:
+    """클레이모피즘 특유의 좌상단 하이라이트 → 우하단 음영 3D 입체 그라데이션."""
+    return ft.LinearGradient(
+        begin=ft.Alignment.TOP_LEFT,
+        end=ft.Alignment.BOTTOM_RIGHT,
+        colors=[
+            lighten_hex(base_hex, 0.16),
+            base_hex,
+            darken_hex(base_hex, 0.08),
+        ],
+    )
+
+
+def clay_border(
+    base_hex: str, rim_width: float = 1.5, bottom_width: float = 2.6
+) -> ft.Border:
+    """클레이모피즘 입체 테두리: 위·왼쪽 밝은 광택 림 + 아래·오른쪽 두툼한 점토 베벨."""
+    return ft.Border(
+        top=ft.BorderSide(rim_width, lighten_hex(base_hex, 0.42)),
+        left=ft.BorderSide(rim_width, lighten_hex(base_hex, 0.34)),
+        right=ft.BorderSide(rim_width, darken_hex(base_hex, 0.12)),
+        bottom=ft.BorderSide(bottom_width, darken_hex(base_hex, 0.18)),
+    )
+
+
+def clay_shadow(blur: float = 10, y: float = 4) -> list[ft.BoxShadow]:
+    """클레이모피즘의 폭신하게 떠 있는 이중 그림자."""
+    return [
+        ft.BoxShadow(
+            blur_radius=blur,
+            spread_radius=0,
+            color="#1E181D26",
+            offset=ft.Offset(0, y),
+        ),
+        ft.BoxShadow(
+            blur_radius=max(2.0, blur * 0.35),
+            spread_radius=0,
+            color="#12181D26",
+            offset=ft.Offset(0, max(1.0, y * 0.4)),
+        ),
+    ]
 
 
 def font_for(weight: int) -> str:
@@ -127,13 +171,15 @@ def actions_row(*controls: ft.Control) -> ft.Row:
 
 
 def chip(value: str, selected: bool, on_click: Callable[[], None]) -> ft.Container:
-    """고르는 칩(형식·배율·요일 수). 선택된 것만 먹색으로 채운다."""
+    """고르는 칩(형식·배율·요일 수). 클레이모피즘 입체 질감으로 표현한다."""
+    base = d.INK if selected else d.CANVAS
     return ft.Container(
         text(value, d.BODY_MD, color=d.ON_PRIMARY if selected else d.BODY),
         padding=ft.Padding.symmetric(horizontal=d.SPACE_MD, vertical=d.SPACE_SM),
-        border_radius=ft.BorderRadius.all(d.RADIUS_SM),
-        bgcolor=d.INK if selected else d.CANVAS,
-        border=None if selected else ft.Border.all(1, d.HAIRLINE),
+        border_radius=ft.BorderRadius.all(d.RADIUS_MD),
+        gradient=clay_gradient(base),
+        border=clay_border(base, rim_width=1.2, bottom_width=2.2),
+        shadow=clay_shadow(blur=6, y=2.5),
         ink=True,
         on_click=lambda e: on_click(),
     )

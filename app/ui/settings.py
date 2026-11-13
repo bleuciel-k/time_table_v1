@@ -14,6 +14,7 @@ from app.palette import (
     FEATURED_BACKGROUNDS,
     THEME_ACCENTS,
     THEME_SWATCHES,
+    darken_hex,
 )
 from app.ui import theme as t
 
@@ -147,23 +148,37 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
         selected = draft.background == key
         accent = THEME_ACCENTS.get(key, d.INK)
         swatch_hex = THEME_SWATCHES.get(key, BACKGROUNDS[key])
+        card_bg = BACKGROUNDS[key] if selected and key != "white" else d.CANVAS
         badge = (
             ft.Container(
                 ft.Icon(ft.Icons.CHECK, color=d.ON_PRIMARY, size=12),
-                width=20,
-                height=20,
-                bgcolor=accent,
-                border_radius=ft.BorderRadius.all(10),
+                width=22,
+                height=22,
+                gradient=t.clay_gradient(accent),
+                border=t.clay_border(accent, rim_width=1.0, bottom_width=1.8),
+                shadow=t.clay_shadow(blur=4, y=1.5),
+                border_radius=ft.BorderRadius.all(11),
                 alignment=ft.Alignment.CENTER,
             )
             if selected
-            else ft.Container(width=20, height=20)
+            else ft.Container(width=22, height=22)
         )
         swatch_bar = ft.Container(
-            height=28,
-            bgcolor=swatch_hex,
+            height=30,
+            gradient=t.clay_gradient(swatch_hex),
+            border=t.clay_border(swatch_hex, rim_width=1.2, bottom_width=2.2),
+            shadow=t.clay_shadow(blur=5, y=2),
             border_radius=ft.BorderRadius.all(d.RADIUS_SM),
-            border=ft.Border.all(0.5, "#12000000"),
+        )
+        card_border = (
+            ft.Border(
+                top=ft.BorderSide(1.8, accent),
+                left=ft.BorderSide(1.8, accent),
+                right=ft.BorderSide(2.0, darken_hex(accent, 0.14)),
+                bottom=ft.BorderSide(3.0, darken_hex(accent, 0.22)),
+            )
+            if selected
+            else t.clay_border(card_bg, rim_width=1.3, bottom_width=2.4)
         )
         return ft.Container(
             ft.Column(
@@ -180,9 +195,10 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
             ),
             expand=True,
             padding=ft.Padding.all(d.SPACE_SM),
-            bgcolor=BACKGROUNDS[key] if selected and key != "white" else d.CANVAS,
+            gradient=t.clay_gradient(card_bg),
             border_radius=ft.BorderRadius.all(d.RADIUS_LG),
-            border=ft.Border.all(1.5, accent) if selected else ft.Border.all(1, d.HAIRLINE),
+            border=card_border,
+            shadow=t.clay_shadow(blur=8, y=3.5),
             ink=True,
             on_click=lambda e, k=key: choose_background(k),
         )

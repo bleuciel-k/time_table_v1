@@ -26,7 +26,7 @@ from app.model import (
     period_times,
 )
 from app.palette import darken_hex, lighten_hex, resolve_hex, text_color
-from app.ui.theme import text
+from app.ui.theme import clay_border, clay_gradient, clay_shadow, text
 
 PERIOD_COL_WIDTH = 22  # 교시 번호만 표시할 때
 TIME_COL_WIDTH = 38  # 교시 시간을 함께 표시할 때 (컴팩트하게 정돈)
@@ -302,7 +302,9 @@ def _lunch_row(settings: Settings, label_width: float) -> ft.Row:
                 text(caption, LUNCH_TEXT, color=d.MUTED, text_align=ft.TextAlign.CENTER),
                 expand=1,
                 height=LUNCH_HEIGHT,
-                border=ft.Border.all(1, d.HAIRLINE),
+                bgcolor=ft.Colors.with_opacity(0.72, "#FFFFFF"),
+                border=clay_border("#FFFFFF", rim_width=1.2, bottom_width=2.0),
+                shadow=clay_shadow(blur=6, y=2),
                 border_radius=ft.BorderRadius.all(RADIUS),
                 alignment=ft.Alignment.CENTER,
             ),
@@ -446,10 +448,8 @@ def _card_lines(cell: Cell) -> list[ft.Control]:
 
 
 def _card(cell: Cell, height: float = CELL_HEIGHT, **kwargs) -> ft.Container:
-    """수업 칸의 모양. Figma 스타일의 부드러운 그라데이션과 입체 그림자를 적용한다."""
+    """수업 칸의 모양. 클레이모피즘(Claymorphism) 3D 점토 질감과 입체 그림자를 적용한다."""
     base_hex = resolve_hex(cell.color)
-    top_tint = lighten_hex(base_hex, 0.05)
-    bottom_tint = darken_hex(base_hex, 0.02)
 
     return ft.Container(
         ft.Column(
@@ -460,20 +460,9 @@ def _card(cell: Cell, height: float = CELL_HEIGHT, **kwargs) -> ft.Container:
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
         height=height,
-        gradient=ft.LinearGradient(
-            begin=ft.Alignment.TOP_CENTER,
-            end=ft.Alignment.BOTTOM_CENTER,
-            colors=[top_tint, bottom_tint],
-        ),
-        shadow=kwargs.pop(
-            "shadow",
-            ft.BoxShadow(
-                blur_radius=6,
-                spread_radius=0,
-                color="#10000000",
-                offset=ft.Offset(0, 2),
-            ),
-        ),
+        gradient=clay_gradient(base_hex),
+        border=clay_border(base_hex, rim_width=1.5, bottom_width=2.8),
+        shadow=kwargs.pop("shadow", clay_shadow(blur=10, y=4)),
         border_radius=ft.BorderRadius.all(RADIUS),
         padding=ft.Padding.all(d.SPACE_XS),
         alignment=ft.Alignment.CENTER,
@@ -558,9 +547,20 @@ def _block(block: Block, top: float, ctx: _Ctx) -> list[ft.Control]:
     if cell is None:
         base: ft.Container = ft.Container(
             height=height,
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.45, d.HAIRLINE)),
+            border=ft.Border(
+                top=ft.BorderSide(1.4, "#E6FFFFFF"),
+                left=ft.BorderSide(1.4, "#CCFFFFFF"),
+                right=ft.BorderSide(1.2, "#14181D26"),
+                bottom=ft.BorderSide(2.0, "#1E181D26"),
+            ),
             border_radius=ft.BorderRadius.all(RADIUS),
-            bgcolor=ft.Colors.with_opacity(0.22, "#FFFFFF"),
+            bgcolor=ft.Colors.with_opacity(0.62, "#FFFFFF"),
+            shadow=ft.BoxShadow(
+                blur_radius=5,
+                spread_radius=0,
+                color="#0D181D26",
+                offset=ft.Offset(0, 2),
+            ),
             **interaction,
         )
     else:

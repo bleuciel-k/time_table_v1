@@ -99,6 +99,7 @@ def open_cell_editor(
 
     for color in PALETTE:
         is_sel = color == form.color
+        hex_c = resolve_hex(color)
         check_icon = ft.Icon(
             ft.Icons.CHECK,
             color=text_color(color),
@@ -109,9 +110,10 @@ def open_cell_editor(
         box = ft.Container(
             width=SWATCH_SIZE,
             height=SWATCH_SIZE,
-            bgcolor=resolve_hex(color),
-            border_radius=ft.BorderRadius.all(SWATCH_SIZE / 2),
-            border=ft.Border.all(2, d.INK) if is_sel else ft.Border.all(1, d.HAIRLINE),
+            gradient=t.clay_gradient(hex_c),
+            border_radius=ft.BorderRadius.all(13),
+            border=ft.Border.all(2, d.INK) if is_sel else t.clay_border(hex_c, 1.3, 2.4),
+            shadow=t.clay_shadow(blur=6, y=2.5),
             content=check_icon,
             alignment=ft.Alignment.CENTER,
             tooltip=color,
@@ -135,7 +137,7 @@ def open_cell_editor(
         if old_color == new_color:
             return
         if old_color in swatch_boxes:
-            swatch_boxes[old_color].border = ft.Border.all(1, d.HAIRLINE)
+            swatch_boxes[old_color].border = t.clay_border(resolve_hex(old_color), 1.3, 2.4)
             swatch_checks[old_color].visible = False
         if new_color in swatch_boxes:
             swatch_boxes[new_color].border = ft.Border.all(2, d.INK)

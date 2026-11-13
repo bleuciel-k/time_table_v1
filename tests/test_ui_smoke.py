@@ -155,9 +155,9 @@ def test_drag_mode_and_hand_button_smoke(page, ctrl):
     holder = grid_control.controls[1].controls[1].content.controls[0]
     assert isinstance(holder.content, ft.DragTarget)
     assert isinstance(holder.content.content, ft.Draggable)
-    # 셀 외형의 border가 인위적인 색상 없이 기존 스타일(None)을 유지하는지 검증
+    # 셀 외형의 클레이모피즘 입체 테두리(Border)와 그라데이션·그림자가 유지되는지 검증
     card_content = holder.content.content.content
-    assert card_content.border is None
+    assert isinstance(card_content.border, ft.Border)
     assert isinstance(card_content.gradient, ft.LinearGradient)
     assert card_content.shadow is not None
 
