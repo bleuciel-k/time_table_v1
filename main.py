@@ -10,6 +10,7 @@ from app.sample import sample_data
 from app.palette import background_hex
 from app.storage import Storage
 from app.qr import decode_timetable
+from app.ui import theme as t
 from app.ui.actions import Actions
 from app.ui.grid import build_grid
 from app.ui.theme import build_theme, snack_bar, text

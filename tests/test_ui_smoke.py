@@ -59,6 +59,21 @@ def noop_result(result: ActionResult) -> None:
     pass
 
 
+def test_main_entrypoint_smoke(page, monkeypatch, tmp_path):
+    import main
+
+    monkeypatch.setattr(main, "Storage", lambda: Storage(tmp_path))
+    page.width = 390
+    page.height = 844
+    page.route = "/"
+    page.overlay = []
+    page.controls = []
+    page.add = lambda *c: page.controls.extend(c)
+    main.main(page)
+    assert page.appbar is not None
+    assert len(page.controls) == 1
+
+
 def test_grid_builds_for_each_background(ctrl):
     from dataclasses import replace
 
