@@ -22,7 +22,8 @@ PALETTE: dict[str, str] = {
 
 # 배경색 (F9). 16색 셀과 먹색 글자가 모두 잘 보이도록 아주 연한 파스텔 틴트만 둔다 (DESIGN.md)
 BACKGROUNDS: dict[str, str] = {
-    # 대표 무드 테마
+    # 기본 흰색 & 대표 무드 테마
+    "white": "#FFFFFF",
     "lavender": "#F2EEFA",
     "peach": "#FDF0E8",
     "mint": "#EAF6F0",
@@ -30,7 +31,6 @@ BACKGROUNDS: dict[str, str] = {
     "rose": "#FCECF1",
     "butter": "#FDF9E6",
     "oatmeal": "#F5EFE9",
-    "white": "#FFFFFF",
     # 추가 파스텔 테마
     "coral": "#FDEEEB",
     "sage": "#EDF4EE",
@@ -50,6 +50,7 @@ BACKGROUNDS: dict[str, str] = {
 }
 
 BACKGROUND_LABELS: dict[str, str] = {
+    "white": "흰색",
     "lavender": "라벤더",
     "peach": "피치",
     "mint": "민트",
@@ -57,7 +58,6 @@ BACKGROUND_LABELS: dict[str, str] = {
     "rose": "로즈",
     "butter": "버터",
     "oatmeal": "오트밀",
-    "white": "화이트",
     "coral": "코랄",
     "sage": "세이지",
     "lilac": "라일락",
@@ -75,8 +75,9 @@ BACKGROUND_LABELS: dict[str, str] = {
     "ash": "애쉬",
 }
 
-# 설정 시트 대표 테마 순서 (카드 UI 2열 배치)
+# 설정 시트 대표 테마 순서
 FEATURED_BACKGROUNDS: tuple[str, ...] = (
+    "white",
     "lavender",
     "peach",
     "mint",
@@ -84,11 +85,11 @@ FEATURED_BACKGROUNDS: tuple[str, ...] = (
     "rose",
     "butter",
     "oatmeal",
-    "white",
 )
 
 # 각 테마의 대표 파스텔 단색 견본 (컬러 테마 카드 미리보기용)
 THEME_SWATCHES: dict[str, str] = {
+    "white": "#FFFFFF",
     "lavender": "#D6CCEE",
     "peach": "#F6DBC8",
     "mint": "#C6E4D4",
@@ -96,7 +97,6 @@ THEME_SWATCHES: dict[str, str] = {
     "rose": "#F4CFE0",
     "butter": "#F7EBB9",
     "oatmeal": "#E6D3C5",
-    "white": "#F7F8FA",
     "coral": "#F5C2C2",
     "sage": "#CCE6CB",
     "lilac": "#E5CFF2",
@@ -116,6 +116,7 @@ THEME_SWATCHES: dict[str, str] = {
 
 # 선택된 테마 카드의 테두리 및 체크 배지 포인트 컬러 (부드러운 뮤트 파스텔)
 THEME_ACCENTS: dict[str, str] = {
+    "white": "#181D26",
     "lavender": "#8B78B8",
     "peach": "#D48E6A",
     "mint": "#6BA88D",
@@ -123,7 +124,6 @@ THEME_ACCENTS: dict[str, str] = {
     "rose": "#C97D9B",
     "butter": "#C7A64B",
     "oatmeal": "#A68B76",
-    "white": "#181D26",
     "coral": "#D47C7C",
     "sage": "#78A37E",
     "lilac": "#9D78B8",

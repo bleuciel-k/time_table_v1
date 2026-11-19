@@ -13,3 +13,4 @@ key.properties
 .DS_Store
 .claude/
 .specify/
+*.zip

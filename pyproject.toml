@@ -18,6 +18,10 @@ org = "com.seonho"
 product = "대학 시간표"
 company = "seonho"
 
+[tool.flet.android.signing]
+key_store = "/Users/seonho/Documents/App/time_table_v1/upload-keystore.jks"
+key_alias = "upload"
+
 [tool.flet.deep_linking]
 scheme = "timetable"
 host = "import"

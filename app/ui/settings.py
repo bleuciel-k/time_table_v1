@@ -17,38 +17,23 @@ from app.palette import (
 )
 from app.ui import theme as t
 
+THEME_COLS = 4
+
 ShowResult = Callable[[ActionResult], None]
 NOT_A_NUMBER = "수업 시간과 쉬는 시간은 숫자로 입력하세요."
 
 
 def open_settings(page: ft.Page, controller: AppController, show_result: ShowResult) -> None:
     draft: Settings = replace(controller.workspace.data.settings)
-    show_all_themes = draft.background not in FEATURED_BACKGROUNDS
     days_row = ft.Row(spacing=d.SPACE_XS)
-    theme_grid = ft.Column(spacing=d.SPACE_SM, tight=True)
-    theme_toggle_btn = ft.TextButton(
-        "더보기",
-        style=ft.ButtonStyle(
-            color=d.MUTED,
-            padding=ft.Padding.symmetric(horizontal=d.SPACE_XS, vertical=0),
-            text_style=t.style(d.SMALL, d.MUTED),
-        ),
-    )
-    theme_header = ft.Row(
+    theme_grid = ft.Column(spacing=6, tight=True)
+    theme_header = ft.Column(
         [
-            ft.Column(
-                [
-                    t.text("컬러 테마", d.LABEL, color=d.INK),
-                    t.text("오늘의 기분에 맞는 색을 골라보세요", d.SMALL, color=d.MUTED),
-                ],
-                spacing=2,
-                tight=True,
-                expand=True,
-            ),
-            theme_toggle_btn,
+            t.text("컬러 테마", d.LABEL, color=d.INK),
+            t.text("오늘의 기분에 맞는 색을 골라보세요", d.SMALL, color=d.MUTED),
         ],
-        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-        vertical_alignment=ft.CrossAxisAlignment.START,
+        spacing=2,
+        tight=True,
     )
     periods_row = ft.Row(wrap=True, spacing=d.SPACE_XS, run_spacing=d.SPACE_XS)
     start_time = t.text_field("1교시 시작", value=draft.start_time, helper="HH:MM")
@@ -101,13 +86,6 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
         draft = replace(draft, background=value)
         sync()
 
-    def toggle_all_themes(e: ft.Event[ft.TextButton]) -> None:
-        nonlocal show_all_themes
-        show_all_themes = not show_all_themes
-        sync()
-
-    theme_toggle_btn.on_click = toggle_all_themes
-
     def toggle_times(e: ft.Event[ft.Switch]) -> None:
         nonlocal draft
         draft = replace(draft, show_times=bool(e.control.value))
@@ -147,56 +125,42 @@ def open_settings(page: ft.Page, controller: AppController, show_result: ShowRes
         selected = draft.background == key
         accent = THEME_ACCENTS.get(key, d.INK)
         swatch_hex = THEME_SWATCHES.get(key, BACKGROUNDS[key])
-        badge = (
-            ft.Container(
-                ft.Icon(ft.Icons.CHECK, color=d.ON_PRIMARY, size=12),
-                width=20,
-                height=20,
-                bgcolor=accent,
-                border_radius=ft.BorderRadius.all(10),
-                alignment=ft.Alignment.CENTER,
-            )
-            if selected
-            else ft.Container(width=20, height=20)
-        )
-        swatch_bar = ft.Container(
-            height=28,
+        swatch_chip = ft.Container(
+            ft.Icon(ft.Icons.CHECK, color=d.INK, size=11) if selected else None,
+            width=18,
+            height=18,
             bgcolor=swatch_hex,
-            border_radius=ft.BorderRadius.all(d.RADIUS_SM),
-            border=ft.Border.all(0.5, "#12000000"),
+            border_radius=ft.BorderRadius.all(5),
+            border=ft.Border.all(1, accent) if selected else ft.Border.all(0.5, "#1F000000"),
+            alignment=ft.Alignment.CENTER,
         )
         return ft.Container(
-            ft.Column(
+            ft.Row(
                 [
-                    ft.Row(
-                        [t.text(BACKGROUND_LABELS[key], d.CAPTION, color=d.INK), badge],
-                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                    ),
-                    swatch_bar,
+                    swatch_chip,
+                    t.text(BACKGROUND_LABELS[key], d.SMALL, color=d.INK, no_wrap=True),
                 ],
-                spacing=d.SPACE_XS,
-                tight=True,
+                spacing=6,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
             ),
             expand=True,
-            padding=ft.Padding.all(d.SPACE_SM),
+            padding=ft.Padding.symmetric(horizontal=8, vertical=6),
             bgcolor=BACKGROUNDS[key] if selected and key != "white" else d.CANVAS,
-            border_radius=ft.BorderRadius.all(d.RADIUS_LG),
+            border_radius=ft.BorderRadius.all(d.RADIUS_SM),
             border=ft.Border.all(1.5, accent) if selected else ft.Border.all(1, d.HAIRLINE),
             ink=True,
             on_click=lambda e, k=key: choose_background(k),
         )
 
     def sync() -> None:
-        visible_keys = list(BACKGROUNDS) if show_all_themes else list(FEATURED_BACKGROUNDS)
-        theme_toggle_btn.content = "접기" if show_all_themes else f"더보기 ({len(BACKGROUNDS)})"
+        all_keys = list(BACKGROUNDS)
         card_rows: list[ft.Control] = []
-        for idx in range(0, len(visible_keys), 2):
-            pair = visible_keys[idx : idx + 2]
-            row_controls: list[ft.Control] = [theme_card(k) for k in pair]
-            if len(row_controls) == 1:
+        for idx in range(0, len(all_keys), THEME_COLS):
+            chunk = all_keys[idx : idx + THEME_COLS]
+            row_controls: list[ft.Control] = [theme_card(k) for k in chunk]
+            while len(row_controls) < THEME_COLS:
                 row_controls.append(ft.Container(expand=True))
-            card_rows.append(ft.Row(row_controls, spacing=d.SPACE_SM))
+            card_rows.append(ft.Row(row_controls, spacing=6))
         theme_grid.controls = card_rows
         days_row.controls = [
             t.chip(f"{value}일", draft.days == value, lambda v=value: choose_days(v))
